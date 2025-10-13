@@ -32,7 +32,7 @@ interface PlayerConfig {
 }
 
 const BucketManager = () => {
-  const [bucketUrl, setBucketUrl] = useState("");
+  const [bucketUrl, setBucketUrl] = useState("https://vid-just.cleverpoly-store.workers.dev");
   const [bucketName, setBucketName] = useState("");
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,6 +56,13 @@ const BucketManager = () => {
   });
 
   const [showThumbnails, setShowThumbnails] = useState(true);
+
+  // Auto-fetch videos when component loads
+  useEffect(() => {
+    if (bucketUrl && !testMode) {
+      fetchVideos();
+    }
+  }, [bucketUrl, testMode]);
 
   // Fetch videos from bucket
   const fetchVideos = async () => {
