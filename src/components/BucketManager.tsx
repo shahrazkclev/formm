@@ -198,6 +198,12 @@ const BucketManager = () => {
     const fileToUpload = file || thumbnailFile;
     const videoToUse = videoKey || selectedVideoForThumbnail;
     
+    console.log('Upload thumbnail called with:', { 
+      file: fileToUpload?.name, 
+      videoKey: videoToUse, 
+      bucketUrl 
+    });
+    
     if (!fileToUpload || !videoToUse || !bucketUrl) {
       toast.error("Please select a thumbnail file and video");
       return;
@@ -209,19 +215,25 @@ const BucketManager = () => {
       formData.append('file', fileToUpload);
       formData.append('videoKey', videoToUse);
 
+      console.log('Sending thumbnail upload request to:', `${bucketUrl}/upload-thumbnail`);
+      
       const response = await fetch(`${bucketUrl}/upload-thumbnail`, {
         method: 'POST',
         body: formData,
       });
 
+      console.log('Thumbnail upload response:', response.status, response.statusText);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('Thumbnail upload success:', result);
         toast.success(`Thumbnail for ${videoToUse} uploaded successfully!`);
         fetchVideos(); // Refresh the video list
         setThumbnailFile(null);
         setSelectedVideoForThumbnail("");
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Thumbnail upload failed' }));
+        console.error('Thumbnail upload failed:', errorData);
         throw new Error(errorData.error || `Thumbnail upload failed (${response.status})`);
       }
     } catch (error) {
@@ -742,12 +754,11 @@ const BucketManager = () => {
                       accept="image/*"
                       className="hidden"
                       id={`thumbnail-${index}`}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          setThumbnailFile(file);
-                          setSelectedVideoForThumbnail(video.key);
-                          uploadThumbnail();
+                          console.log('Uploading thumbnail for:', video.key, 'File:', file.name);
+                          await uploadThumbnail(file, video.key);
                         }
                       }}
                     />
