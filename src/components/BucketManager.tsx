@@ -92,7 +92,7 @@ const BucketManager = () => {
     
     setLoading(true);
     try {
-      const response = await fetch(`${bucketUrl}/list-videos`);
+      const response = await fetch(`${bucketUrl}/list-videos?t=${Date.now()}`);
       console.log('Fetch response status:', response.status);
       
       if (response.ok) {
