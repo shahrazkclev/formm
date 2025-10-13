@@ -100,18 +100,33 @@ async function listVideos(env, corsHeaders) {
 
     const videos = [];
 
-    for (const object of listResult.objects) {
-      // Use your public R2 URL
-      const publicUrl = `https://pub-6b835e0399ff468abaeb2e4e04ce57c7.r2.dev/${object.key}`;
-      videos.push({
-        key: object.key,
-        url: publicUrl,
-        size: object.size,
-        lastModified: object.uploaded.toISOString(),
-        // Add thumbnail logic here if you have thumbnails
-        thumbnail: `https://pub-6b835e0399ff468abaeb2e4e04ce57c7.r2.dev/thumbnails/${object.key.replace(/\.[^/.]+$/, "")}.jpg`
-      });
-    }
+        for (const object of listResult.objects) {
+          // Use your public R2 URL
+          const publicUrl = `https://pub-6b835e0399ff468abaeb2e4e04ce57c7.r2.dev/${object.key}`;
+          
+          // Check if thumbnail exists
+          const thumbnailKey = `thumbnails/${object.key.replace(/\.[^/.]+$/, "")}.jpg`;
+          const thumbnailUrl = `https://pub-6b835e0399ff468abaeb2e4e04ce57c7.r2.dev/${thumbnailKey}`;
+          
+          // Try to check if thumbnail exists (optional - you can remove this check if you want)
+          let hasThumbnail = false;
+          try {
+            const thumbnailCheck = await bucket.head(thumbnailKey);
+            hasThumbnail = thumbnailCheck !== null;
+          } catch (e) {
+            // Thumbnail doesn't exist, that's fine
+            hasThumbnail = false;
+          }
+          
+          videos.push({
+            key: object.key,
+            url: publicUrl,
+            size: object.size,
+            lastModified: object.uploaded.toISOString(),
+            // Only include thumbnail if it exists
+            thumbnail: hasThumbnail ? thumbnailUrl : undefined
+          });
+        }
 
     console.log('Processed videos:', videos);
     return new Response(JSON.stringify({ videos }), {
