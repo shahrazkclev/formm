@@ -39,6 +39,9 @@ const BucketManager = () => {
   const [copied, setCopied] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [selectedVideoForThumbnail, setSelectedVideoForThumbnail] = useState<string>("");
   const [testMode, setTestMode] = useState(false);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   
@@ -187,6 +190,43 @@ const BucketManager = () => {
       }
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Upload thumbnail for a video
+  const uploadThumbnail = async () => {
+    if (!thumbnailFile || !selectedVideoForThumbnail || !bucketUrl) {
+      toast.error("Please select a thumbnail file and video");
+      return;
+    }
+
+    setUploadingThumbnail(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', thumbnailFile);
+      formData.append('videoKey', selectedVideoForThumbnail);
+
+      const response = await fetch(`${bucketUrl}/upload-thumbnail`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success("Thumbnail uploaded successfully!");
+        fetchVideos(); // Refresh the video list
+        setThumbnailFile(null);
+        setSelectedVideoForThumbnail("");
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Thumbnail upload failed' }));
+        throw new Error(errorData.error || `Thumbnail upload failed (${response.status})`);
+      }
+    } catch (error) {
+      console.error('Thumbnail upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Thumbnail upload failed';
+      toast.error(`Thumbnail upload failed: ${errorMessage}`);
+    } finally {
+      setUploadingThumbnail(false);
     }
   };
 
@@ -640,6 +680,67 @@ const BucketManager = () => {
         </div>
       </Card>
 
+      {/* Thumbnail Upload */}
+      {videos.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            🖼️ Upload Thumbnails
+          </h3>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="video-select">Select Video for Thumbnail</Label>
+              <Select value={selectedVideoForThumbnail} onValueChange={setSelectedVideoForThumbnail}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Choose a video..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {videos.map((video, index) => (
+                    <SelectItem key={index} value={video.key}>
+                      {video.key} ({(video.size / 1024 / 1024).toFixed(1)} MB)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="thumbnail-upload">Select Thumbnail Image</Label>
+              <Input
+                id="thumbnail-upload"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Recommended: JPG/PNG, 16:9 aspect ratio, 1920x1080 or similar
+              </p>
+            </div>
+            
+            {thumbnailFile && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <p className="text-sm font-medium">Preview:</p>
+                <img 
+                  src={URL.createObjectURL(thumbnailFile)} 
+                  alt="Thumbnail preview"
+                  className="mt-2 w-32 h-18 object-cover rounded border"
+                />
+              </div>
+            )}
+            
+            <Button 
+              onClick={uploadThumbnail} 
+              disabled={uploadingThumbnail || !thumbnailFile || !selectedVideoForThumbnail || !bucketUrl}
+              className="w-full"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {uploadingThumbnail ? 'Uploading Thumbnail...' : 'Upload Thumbnail'}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Video Gallery */}
       {videos.length > 0 && (
         <Card className="p-6">
@@ -796,12 +897,31 @@ const BucketManager = () => {
                 preload="metadata"
                 crossOrigin="anonymous"
                 playsInline
+                onError={(e) => {
+                  console.error('Video error:', e);
+                  const target = e.target as HTMLVideoElement;
+                  console.error('Video error details:', {
+                    error: target.error,
+                    networkState: target.networkState,
+                    readyState: target.readyState,
+                    src: target.src
+                  });
+                }}
+                onLoadStart={() => console.log('Video loading started')}
+                onCanPlay={() => console.log('Video can play')}
               >
                 <source src={videos[0]?.url} type="video/mp4" />
+                <source src={videos[0]?.url} type="video/webm" />
+                <source src={videos[0]?.url} type="video/ogg" />
                 Your browser does not support the video tag.
               </video>
               <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
                 Preview Mode
+              </div>
+              <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                <a href={videos[0]?.url} target="_blank" rel="noopener noreferrer" className="text-white hover:underline">
+                  Open Direct Link
+                </a>
               </div>
             </div>
           </div>

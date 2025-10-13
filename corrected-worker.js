@@ -35,6 +35,11 @@ export default {
         return await uploadVideo(request, env, corsHeaders);
       }
 
+      // Route: Upload thumbnail for a video
+      if (path === '/upload-thumbnail' && method === 'POST') {
+        return await uploadThumbnail(request, env, corsHeaders);
+      }
+
       // Route: Get video by key
       if (path.startsWith('/video/') && method === 'GET') {
         const videoKey = path.replace('/video/', '');
@@ -216,6 +221,65 @@ async function getVideo(key, env, corsHeaders) {
     });
   } catch (error) {
     console.error('Error getting video:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// Upload thumbnail for a video
+async function uploadThumbnail(request, env, corsHeaders) {
+  try {
+    const bucket = env['just-vids']; // Use correct binding name
+
+    if (!bucket) {
+      throw new Error('R2 bucket not configured - check binding name');
+    }
+
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const videoKey = formData.get('videoKey');
+
+    if (!file) {
+      return new Response(JSON.stringify({ error: 'No thumbnail file uploaded' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!videoKey) {
+      return new Response(JSON.stringify({ error: 'No video key provided' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Basic file type validation for images
+    if (!file.type.startsWith('image/')) {
+      return new Response(JSON.stringify({ error: 'Only image files are allowed for thumbnails' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Create thumbnail key based on video key
+    const thumbnailKey = `thumbnails/${videoKey.replace(/\.[^/.]+$/, "")}.jpg`;
+    
+    await bucket.put(thumbnailKey, file.stream(), {
+      httpMetadata: { contentType: file.type },
+    });
+
+    const publicUrl = `https://pub-6b835e0399ff468abaeb2e4e04ce57c7.r2.dev/${thumbnailKey}`;
+    return new Response(JSON.stringify({ 
+      message: `Thumbnail for ${videoKey} uploaded successfully`, 
+      thumbnailUrl: publicUrl,
+      thumbnailKey: thumbnailKey
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    console.error('Error uploading thumbnail:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
