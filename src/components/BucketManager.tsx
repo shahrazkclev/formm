@@ -4,8 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Upload, Play, Copy, ExternalLink, Image, Trash2, Download } from 'lucide-react';
+import { Upload, Play, Copy, ExternalLink, Image, Trash2, Download, Settings } from 'lucide-react';
 import { toast } from 'sonner';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
+import { Slider } from './ui/slider';
+import VideoContainer from './VideoContainer';
 
 interface VideoFile {
   key: string;
@@ -13,6 +17,19 @@ interface VideoFile {
   size: number;
   lastModified: string;
   thumbnail?: string;
+}
+
+interface PlayerSettings {
+  width: number;
+  height: number;
+  autoplay: boolean;
+  loop: boolean;
+  muted: boolean;
+  controls: boolean;
+  showTitle: boolean;
+  showButtons: boolean;
+  buttonStyle: 'default' | 'minimal' | 'modern';
+  theme: 'light' | 'dark';
 }
 
 export default function BucketManager() {
@@ -24,6 +41,20 @@ export default function BucketManager() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  
+  // Player Settings
+  const [playerSettings, setPlayerSettings] = useState<PlayerSettings>({
+    width: 800,
+    height: 450,
+    autoplay: false,
+    loop: false,
+    muted: false,
+    controls: true,
+    showTitle: true,
+    showButtons: true,
+    buttonStyle: 'modern',
+    theme: 'light'
+  });
 
   // Auto-fetch videos on component load
   useEffect(() => {
@@ -128,7 +159,7 @@ export default function BucketManager() {
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
-        toast.success('Copied to clipboard!');
+        return true;
       } else {
         // Fallback for older browsers or non-secure contexts
         const textArea = document.createElement('textarea');
@@ -136,26 +167,34 @@ export default function BucketManager() {
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
+        textArea.style.opacity = '0';
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
-        document.execCommand('copy');
+        
+        const successful = document.execCommand('copy');
         textArea.remove();
-        toast.success('Copied to clipboard!');
+        
+        if (successful) {
+          return true;
+        } else {
+          throw new Error('execCommand failed');
+        }
       }
     } catch (error) {
       console.error('Failed to copy:', error);
-      toast.error('Failed to copy to clipboard');
+      throw error;
     }
   };
 
-  const generateCodeSnippet = () => {
+  const generateCodeSnippet = async () => {
     if (videos.length === 0) {
       toast.error('No videos to generate code for');
       return;
     }
     
     console.log('Generating code snippet for', videos.length, 'videos');
+    toast.loading('Generating HTML code...', { id: 'generating' });
 
     // Filter out thumbnail files and only include actual videos
     const actualVideos = videos.filter(video => 
@@ -175,8 +214,8 @@ export default function BucketManager() {
     }));
 
     // Generate dynamic buttons based on actual video count
-    const buttonsHtml = videoData.map((_, index) => 
-      `<button class="btn" onclick="playVideo(${index})">Video ${index + 1}</button>`
+    const buttonsHtml = videoData.map((video, index) => 
+      `<button class="btn" onclick="playVideo(${index})" title="${video.name}">Video ${index + 1}</button>`
     ).join('\n            ');
 
     const htmlCode = `<!DOCTYPE html>
@@ -184,29 +223,139 @@ export default function BucketManager() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Player</title>
+    <title>Video Player - ${actualVideos.length} Videos</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        .video-container { max-width: 800px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        video { width: 100%; height: auto; display: block; }
-        .controls { padding: 15px; background: #f8f9fa; border-top: 1px solid #e9ecef; }
-        .btn { padding: 8px 16px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
-        .btn:hover { background: #0056b3; }
-        .btn.active { background: #28a745; }
-        .video-info { padding: 10px 15px; background: #e9ecef; font-size: 14px; color: #666; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+        }
+        .video-container { 
+            background: white; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        video { 
+            width: 100%; 
+            height: auto; 
+            display: block; 
+            background: #000;
+        }
+        .video-info { 
+            padding: 15px 20px; 
+            background: #f8f9fa; 
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .video-title {
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+        .video-counter {
+            background: #007bff;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .controls { 
+            padding: 20px; 
+            background: #fff;
+        }
+        .btn { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            background: #007bff; 
+            color: white; 
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        .btn:hover { 
+            background: #0056b3; 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+        .btn.active { 
+            background: #28a745; 
+            box-shadow: 0 4px 12px rgba(40,167,69,0.3);
+        }
+        .navigation {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .nav-btn {
+            padding: 12px 24px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        .nav-btn:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .btn { padding: 8px 16px; font-size: 13px; }
+            .nav-btn { padding: 10px 20px; }
+        }
     </style>
 </head>
 <body>
-    <div class="video-container">
-        <video id="videoPlayer" controls poster="${videoData[0]?.thumbnail || ''}">
-            <source src="${videoData[0]?.url || ''}" type="video/mp4">
-            Your browser does not support the video tag.
-        </video>
-        <div class="video-info">
-            <span id="videoTitle">${videoData[0]?.name || 'Video 1'}</span>
-        </div>
-        <div class="controls">
-            ${buttonsHtml}
+    <div class="container">
+        <div class="video-container">
+            <video id="videoPlayer" controls poster="${videoData[0]?.thumbnail || ''}">
+                <source src="${videoData[0]?.url || ''}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <div class="video-info">
+                <h3 class="video-title" id="videoTitle">${videoData[0]?.name || 'Video 1'}</h3>
+                <span class="video-counter" id="videoCounter">1 / ${videoData.length}</span>
+            </div>
+            <div class="controls">
+                <div class="navigation">
+                    <button class="nav-btn" id="prevBtn" onclick="previousVideo()">← Previous</button>
+                    <button class="nav-btn" id="nextBtn" onclick="nextVideo()">Next →</button>
+                </div>
+                <div style="margin-top: 15px; text-align: center;">
+                    ${buttonsHtml}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -215,45 +364,99 @@ export default function BucketManager() {
         let currentVideoIndex = 0;
         const videoElement = document.getElementById('videoPlayer');
         const videoTitle = document.getElementById('videoTitle');
+        const videoCounter = document.getElementById('videoCounter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        
+        function updateUI() {
+            // Update video source
+            const currentVideo = videoData[currentVideoIndex];
+            videoElement.src = currentVideo.url;
+            videoElement.poster = currentVideo.thumbnail || '';
+            
+            // Update video title and counter
+            videoTitle.textContent = currentVideo.name;
+            videoCounter.textContent = \`\${currentVideoIndex + 1} / \${videoData.length}\`;
+            
+            // Update button states
+            document.querySelectorAll('.btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === currentVideoIndex);
+            });
+            
+            // Update navigation buttons
+            prevBtn.disabled = currentVideoIndex === 0;
+            nextBtn.disabled = currentVideoIndex === videoData.length - 1;
+            
+            // Load the video
+            videoElement.load();
+        }
         
         function playVideo(index) {
             if (index >= 0 && index < videoData.length) {
                 currentVideoIndex = index;
-                const currentVideo = videoData[index];
-                
-                // Update video source
-                videoElement.src = currentVideo.url;
-                videoElement.poster = currentVideo.thumbnail || '';
-                
-                // Update video title
-                videoTitle.textContent = currentVideo.name;
-                
-                // Update button states
-                document.querySelectorAll('.btn').forEach((btn, i) => {
-                    btn.classList.toggle('active', i === index);
-                });
-                
-                // Load the video
-                videoElement.load();
+                updateUI();
             }
         }
         
+        function nextVideo() {
+            if (currentVideoIndex < videoData.length - 1) {
+                currentVideoIndex++;
+                updateUI();
+            }
+        }
+        
+        function previousVideo() {
+            if (currentVideoIndex > 0) {
+                currentVideoIndex--;
+                updateUI();
+            }
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                previousVideo();
+            } else if (e.key === 'ArrowRight') {
+                nextVideo();
+            }
+        });
+        
         // Initialize with first video
         if (videoData.length > 0) {
-            playVideo(0);
+            updateUI();
         }
         
         // Handle video errors
         videoElement.addEventListener('error', function(e) {
             console.error('Video load error:', e);
             videoTitle.textContent = 'Error loading video';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = 'Failed to load video. Please check the URL or try another video.';
+            document.querySelector('.controls').insertBefore(errorDiv, document.querySelector('.navigation'));
         });
+        
+        // Auto-hide error messages after 5 seconds
+        setInterval(() => {
+            const errorMsg = document.querySelector('.error-message');
+            if (errorMsg) {
+                errorMsg.remove();
+            }
+        }, 5000);
     </script>
 </body>
 </html>`;
 
     console.log('Generated HTML code length:', htmlCode.length);
-    copyToClipboard(htmlCode);
+    
+    try {
+      await copyToClipboard(htmlCode);
+      toast.dismiss('generating');
+      toast.success('HTML code generated and copied to clipboard!');
+    } catch (error) {
+      toast.dismiss('generating');
+      toast.error('Failed to copy HTML code to clipboard');
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -321,6 +524,7 @@ export default function BucketManager() {
       <Tabs defaultValue="videos" className="space-y-4">
         <TabsList>
           <TabsTrigger value="videos">Videos ({videos.length})</TabsTrigger>
+          <TabsTrigger value="player">Video Player</TabsTrigger>
           <TabsTrigger value="upload">Upload</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
@@ -382,7 +586,14 @@ export default function BucketManager() {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => copyToClipboard(video.url)}
+                        onClick={async () => {
+                          try {
+                            await copyToClipboard(video.url);
+                            toast.success('Video URL copied to clipboard!');
+                          } catch (error) {
+                            toast.error('Failed to copy URL');
+                          }
+                        }}
                       >
                         <Copy className="w-4 h-4 mr-1" />
                         Copy URL
@@ -439,6 +650,36 @@ export default function BucketManager() {
                 </Card>
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        {/* Video Player Tab */}
+        <TabsContent value="player" className="space-y-4">
+          {videos.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <p className="text-muted-foreground">No videos available for playback</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Upload some videos to use the video player
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Video Player with Navigation</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Use the arrow buttons to navigate between videos
+                </p>
+              </CardHeader>
+              <CardContent>
+                <VideoContainer 
+                  urls={videos.map(video => video.url)}
+                  title="Video Player"
+                  className="max-w-4xl mx-auto"
+                />
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
@@ -508,7 +749,14 @@ export default function BucketManager() {
                   </Button>
                   <Button 
                     variant="outline"
-                    onClick={() => copyToClipboard(selectedVideo.url)}
+                    onClick={async () => {
+                      try {
+                        await copyToClipboard(selectedVideo.url);
+                        toast.success('Video URL copied to clipboard!');
+                      } catch (error) {
+                        toast.error('Failed to copy URL');
+                      }
+                    }}
                   >
                     <Copy className="w-4 h-4 mr-2" />
                     Copy URL

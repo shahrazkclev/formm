@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, Volume2, VolumeX, Maximize, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, Maximize, AlertCircle, ChevronLeft, ChevronRight, SkipBack, SkipForward, RotateCcw, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 
@@ -21,9 +21,12 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const [volume, setVolume] = useState(100);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [showControls, setShowControls] = useState(true);
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<number | null>(null);
+  const hideControlsTimeout = useRef<number | null>(null);
 
   // Detect if URL is a YouTube video
   const isYouTube = (url: string) => {
@@ -53,8 +56,9 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setIsLoading(false);
     setHasError(true);
     
-    // Check if this is a Cloudflare R2 URL
+    // Check if this is a Cloudflare R2 URL or external URL
     const isR2Url = url.includes('r2.dev') || url.includes('cloudflare');
+    const isExternalUrl = !url.startsWith(window.location.origin);
     
     // Try to get more specific error information
     const video = event?.currentTarget;
@@ -63,36 +67,36 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
       if (error) {
         switch (error.code) {
           case 1: // MEDIA_ERR_ABORTED
-            setErrorMessage(isR2Url ? 
-              "Video loading was aborted. This is likely a CORS issue with Cloudflare R2." : 
+            setErrorMessage(isR2Url || isExternalUrl ? 
+              "Video loading was aborted. This is likely a CORS issue. Try removing crossOrigin attribute or configure CORS on your server." : 
               "Video loading was aborted.");
             break;
           case 2: // MEDIA_ERR_NETWORK
-            setErrorMessage(isR2Url ? 
-              "Network error occurred while loading video. Check your internet connection and CORS settings for Cloudflare R2." : 
+            setErrorMessage(isR2Url || isExternalUrl ? 
+              "Network error occurred while loading video. This is likely a CORS issue. Check your server's CORS configuration." : 
               "Network error occurred while loading video. Check your internet connection.");
             break;
           case 3: // MEDIA_ERR_DECODE
             setErrorMessage("Video format not supported or corrupted.");
             break;
           case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-            setErrorMessage(isR2Url ? 
-              "Video source not supported. This is likely a CORS issue with Cloudflare R2." : 
+            setErrorMessage(isR2Url || isExternalUrl ? 
+              "Video source not supported. This is likely a CORS issue. Configure CORS headers on your server to allow video access." : 
               "Video source not supported. Check the URL and file format.");
             break;
           default:
-            setErrorMessage(isR2Url ? 
-              "Unknown error occurred while loading video. This might be a CORS issue with Cloudflare R2." : 
+            setErrorMessage(isR2Url || isExternalUrl ? 
+              "Unknown error occurred while loading video. This might be a CORS issue. Check your server's CORS configuration." : 
               "Unknown error occurred while loading video.");
         }
       } else {
-        setErrorMessage(isR2Url ? 
-          "Failed to load video. This is likely a CORS issue with Cloudflare R2." : 
+        setErrorMessage(isR2Url || isExternalUrl ? 
+          "Failed to load video. This is likely a CORS issue. Configure CORS headers on your server." : 
           "Failed to load video. Please check the URL.");
       }
     } else {
-      setErrorMessage(isR2Url ? 
-        "Failed to load video. This is likely a CORS issue with Cloudflare R2." : 
+      setErrorMessage(isR2Url || isExternalUrl ? 
+        "Failed to load video. This is likely a CORS issue. Configure CORS headers on your server." : 
         "Failed to load video. Please check the URL.");
     }
   };
@@ -256,6 +260,51 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
   };
 
+  const skipBackward = () => {
+    if (!playerRef.current) return;
+    const newTime = Math.max(0, currentTime - 10);
+    playerRef.current.seekTo(newTime, true);
+    setCurrentTime(newTime);
+  };
+
+  const skipForward = () => {
+    if (!playerRef.current) return;
+    const newTime = Math.min(duration, currentTime + 10);
+    playerRef.current.seekTo(newTime, true);
+    setCurrentTime(newTime);
+  };
+
+  const handlePlaybackRateChange = (rate: number) => {
+    if (!playerRef.current) return;
+    setPlaybackRate(rate);
+    playerRef.current.setPlaybackRate(rate);
+  };
+
+  const resetVideo = () => {
+    if (!playerRef.current) return;
+    playerRef.current.seekTo(0, true);
+    setCurrentTime(0);
+  };
+
+  const handleMouseMove = () => {
+    setShowControls(true);
+    if (hideControlsTimeout.current) {
+      clearTimeout(hideControlsTimeout.current);
+    }
+    hideControlsTimeout.current = window.setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  const handleMouseLeave = () => {
+    if (hideControlsTimeout.current) {
+      clearTimeout(hideControlsTimeout.current);
+    }
+    hideControlsTimeout.current = window.setTimeout(() => {
+      setShowControls(false);
+    }, 1000);
+  };
+
   if (!urls.length || !url) {
     return (
       <div className={`relative w-full aspect-video rounded-xl bg-secondary border border-border flex items-center justify-center ${className}`}>
@@ -280,6 +329,8 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
         ref={containerRef}
         className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className}`}
         style={{ boxShadow: 'var(--video-shadow)' }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-secondary/80 backdrop-blur-sm z-10 animate-pulse">
@@ -295,9 +346,15 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
               <p className="text-sm text-muted-foreground mt-1">{errorMessage}</p>
               {(errorMessage.includes("CORS") || errorMessage.includes("R2")) && (
                 <div className="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-700">
-                  <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                    <strong>Cloudflare R2 Fix:</strong> Configure CORS on your R2 bucket to allow your domain.
+                  <p className="text-xs text-yellow-800 dark:text-yellow-200 mb-2">
+                    <strong>CORS Fix Options:</strong>
                   </p>
+                  <ul className="text-xs text-yellow-800 dark:text-yellow-200 space-y-1">
+                    <li>• Configure CORS headers on your server</li>
+                    <li>• For Cloudflare R2: Add CORS rules in bucket settings</li>
+                    <li>• Try using a proxy server</li>
+                    <li>• Use same-origin video URLs when possible</li>
+                  </ul>
                 </div>
               )}
             </div>
@@ -315,7 +372,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
             />
             
             {/* Custom Controls Overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-auto">
+            <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-20 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
               {/* Progress Bar */}
               <div className="mb-3">
                 <Slider
@@ -343,6 +400,36 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                     {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                   </Button>
 
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={skipBackward}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                    title="Skip back 10s"
+                  >
+                    <SkipBack className="w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={skipForward}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                    title="Skip forward 10s"
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={resetVideo}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                    title="Reset to beginning"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+
                   <div className="flex items-center gap-2">
                     <Button
                       size="icon"
@@ -364,34 +451,209 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                   </div>
                 </div>
 
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={toggleFullscreen}
-                  className="text-white hover:bg-white/20 hover:text-white"
-                >
-                  <Maximize className="w-5 h-5" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-white/80 text-sm">Speed:</span>
+                    <select
+                      value={playbackRate}
+                      onChange={(e) => handlePlaybackRateChange(parseFloat(e.target.value))}
+                      className="bg-black/50 text-white text-sm rounded px-2 py-1 border border-white/20"
+                    >
+                      <option value={0.5}>0.5x</option>
+                      <option value={0.75}>0.75x</option>
+                      <option value={1}>1x</option>
+                      <option value={1.25}>1.25x</option>
+                      <option value={1.5}>1.5x</option>
+                      <option value={2}>2x</option>
+                    </select>
+                  </div>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={toggleFullscreen}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                  >
+                    <Maximize className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
             </div>
           </>
         ) : (
-          <video
-            key={url}
-            src={url}
-            controls
-            crossOrigin="anonymous"
-            preload="metadata"
-            onLoadedData={handleLoad}
-            onError={handleError}
-            onLoadStart={() => setIsLoading(true)}
-            onCanPlay={() => setIsLoading(false)}
-            className="w-full h-full object-contain bg-black"
-            title={title}
-            playsInline
-          >
-            Your browser does not support the video tag.
-          </video>
+          <>
+            <video
+              key={url}
+              src={url}
+              crossOrigin=""
+              preload="metadata"
+              onLoadedData={handleLoad}
+              onError={handleError}
+              onLoadStart={() => setIsLoading(true)}
+              onCanPlay={() => setIsLoading(false)}
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onVolumeChange={(e) => {
+                setVolume(e.currentTarget.volume * 100);
+                setIsMuted(e.currentTarget.muted);
+              }}
+              className="w-full h-full object-contain bg-black"
+              title={title}
+              playsInline
+              controls={false}
+              ref={(el) => {
+                if (el) {
+                  playerRef.current = el;
+                }
+              }}
+            >
+              Your browser does not support the video tag.
+            </video>
+            
+            {/* Custom Controls Overlay for regular video */}
+            <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-20 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+              {/* Progress Bar */}
+              <div className="mb-3">
+                <Slider
+                  value={[currentTime]}
+                  max={duration}
+                  step={0.1}
+                  onValueChange={handleSeek}
+                  className="cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-white/80 mt-1">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+
+              {/* Control Buttons */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      if (playerRef.current) {
+                        if (isPlaying) {
+                          playerRef.current.pause();
+                        } else {
+                          playerRef.current.play();
+                        }
+                      }
+                    }}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                  >
+                    {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                  </Button>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      if (playerRef.current) {
+                        playerRef.current.currentTime = Math.max(0, currentTime - 10);
+                      }
+                    }}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                    title="Skip back 10s"
+                  >
+                    <SkipBack className="w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      if (playerRef.current) {
+                        playerRef.current.currentTime = Math.min(duration, currentTime + 10);
+                      }
+                    }}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                    title="Skip forward 10s"
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      if (playerRef.current) {
+                        playerRef.current.currentTime = 0;
+                      }
+                    }}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                    title="Reset to beginning"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        if (playerRef.current) {
+                          playerRef.current.muted = !isMuted;
+                        }
+                      }}
+                      className="text-white hover:bg-white/20 hover:text-white"
+                    >
+                      {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                    </Button>
+                    <div className="w-24">
+                      <Slider
+                        value={[volume]}
+                        max={100}
+                        step={1}
+                        onValueChange={(value) => {
+                          if (playerRef.current) {
+                            playerRef.current.volume = value[0] / 100;
+                          }
+                        }}
+                        className="cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-white/80 text-sm">Speed:</span>
+                    <select
+                      value={playbackRate}
+                      onChange={(e) => {
+                        if (playerRef.current) {
+                          playerRef.current.playbackRate = parseFloat(e.target.value);
+                          setPlaybackRate(parseFloat(e.target.value));
+                        }
+                      }}
+                      className="bg-black/50 text-white text-sm rounded px-2 py-1 border border-white/20"
+                    >
+                      <option value={0.5}>0.5x</option>
+                      <option value={0.75}>0.75x</option>
+                      <option value={1}>1x</option>
+                      <option value={1.25}>1.25x</option>
+                      <option value={1.5}>1.5x</option>
+                      <option value={2}>2x</option>
+                    </select>
+                  </div>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={toggleFullscreen}
+                    className="text-white hover:bg-white/20 hover:text-white"
+                  >
+                    <Maximize className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
