@@ -15,6 +15,7 @@ interface VideoFile {
   url: string;
   size: number;
   lastModified: string;
+  thumbnail?: string;
 }
 
 interface PlayerConfig {
@@ -54,6 +55,8 @@ const BucketManager = () => {
     borderRadius: 12
   });
 
+  const [showThumbnails, setShowThumbnails] = useState(true);
+
   // Fetch videos from bucket
   const fetchVideos = async () => {
     if (testMode) {
@@ -65,16 +68,18 @@ const BucketManager = () => {
             key: "sample-video-1.mp4",
             url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
             size: 15728640,
-            lastModified: new Date().toISOString()
+            lastModified: new Date().toISOString(),
+            thumbnail: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg"
           },
           {
             key: "sample-video-2.mp4", 
             url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
             size: 25165824,
-            lastModified: new Date().toISOString()
+            lastModified: new Date().toISOString(),
+            thumbnail: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg"
           }
         ]);
-        toast.success("Demo mode: Loaded 2 sample videos");
+        toast.success("Demo mode: Loaded 2 sample videos with thumbnails");
         setLoading(false);
       }, 1000);
       return;
@@ -417,17 +422,32 @@ const BucketManager = () => {
         <div className="space-y-3 text-sm text-blue-800 dark:text-blue-200">
           <div className="flex items-start gap-2">
             <span className="font-bold">1.</span>
-            <span>Create a Cloudflare R2 bucket and deploy the Worker code (see SETUP_GUIDE.md)</span>
+            <span>Deploy the complete Worker code to fix CORS issues (use complete-worker.js)</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="font-bold">2.</span>
-            <span>Configure CORS on your R2 bucket to allow web access</span>
+            <span>Enter your Worker URL below and test the connection</span>
           </div>
           <div className="flex items-start gap-2">
             <span className="font-bold">3.</span>
-            <span>Enter your Worker URL below and start uploading videos</span>
+            <span>Upload videos and generate embeddable HTML code</span>
           </div>
         </div>
+        
+        {/* Connection Status */}
+        {bucketUrl && (
+          <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${videos.length > 0 ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+              <span className="text-sm font-medium">
+                {videos.length > 0 ? 'Connected' : 'Not Connected'} to Bucket
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Worker URL: {bucketUrl}
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Bucket Configuration */}
@@ -578,23 +598,62 @@ const BucketManager = () => {
       {/* Video List */}
       {videos.length > 0 && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Videos in Bucket ({videos.length})</h3>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Videos in Bucket ({videos.length})</h3>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showThumbnails}
+                onCheckedChange={setShowThumbnails}
+                id="show-thumbnails"
+              />
+              <Label htmlFor="show-thumbnails" className="text-sm">
+                Show Thumbnails
+              </Label>
+            </div>
+          </div>
+          
+          <div className="space-y-3 max-h-80 overflow-y-auto">
             {videos.map((video, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{video.key}</p>
+              <div key={index} className="flex items-center gap-4 p-4 bg-secondary rounded-lg border border-border/50">
+                {showThumbnails && video.thumbnail && (
+                  <div className="w-20 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
+                    <img 
+                      src={video.thumbnail} 
+                      alt={video.key}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+                
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{video.key}</p>
                   <p className="text-xs text-muted-foreground">
-                    {(video.size / 1024 / 1024).toFixed(2)} MB
+                    {(video.size / 1024 / 1024).toFixed(2)} MB • {new Date(video.lastModified).toLocaleDateString()}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => window.open(video.url, '_blank')}
-                >
-                  Preview
-                </Button>
+                
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(video.url, '_blank')}
+                  >
+                    Preview
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(video.url);
+                      toast.success("Video URL copied to clipboard");
+                    }}
+                  >
+                    Copy URL
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

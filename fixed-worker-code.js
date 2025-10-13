@@ -1,7 +1,8 @@
 // Complete Cloudflare Worker for Video Anywhere Box
-// Just copy and paste this entire code into your Cloudflare Worker
+// Copy this entire code into your Cloudflare Worker
 // Worker name: vid-just
 // R2 Bucket: just-vids
+// Binding name: VIDEO_BUCKET
 
 export default {
   async fetch(request, env, ctx) {
@@ -52,7 +53,8 @@ export default {
       return new Response(JSON.stringify({
         message: 'Video Anywhere Box API - vid-just Worker',
         status: 'active',
-        bucket: 'vids',
+        bucket: 'just-vids',
+        binding: 'VIDEO_BUCKET',
         endpoints: {
           'GET /list-videos': 'List all videos in bucket',
           'POST /upload': 'Upload a video file',
@@ -83,7 +85,7 @@ async function listVideos(env, corsHeaders) {
     const bucket = env.VIDEO_BUCKET; // R2 bucket binding: just-vids
     
     if (!bucket) {
-      throw new Error('R2 bucket not configured');
+      throw new Error('R2 bucket not configured - check binding name');
     }
 
     const listResult = await bucket.list();
@@ -128,7 +130,7 @@ async function uploadVideo(request, env, corsHeaders) {
     const bucket = env.VIDEO_BUCKET; // R2 bucket binding: just-vids
     
     if (!bucket) {
-      throw new Error('R2 bucket not configured');
+      throw new Error('R2 bucket not configured - check binding name');
     }
 
     const formData = await request.formData();
@@ -203,7 +205,7 @@ async function getVideo(videoKey, env, corsHeaders) {
     const bucket = env.VIDEO_BUCKET; // R2 bucket binding: just-vids
     
     if (!bucket) {
-      throw new Error('R2 bucket not configured');
+      throw new Error('R2 bucket not configured - check binding name');
     }
 
     const object = await bucket.get(videoKey);
@@ -248,7 +250,7 @@ async function deleteVideo(videoKey, env, corsHeaders) {
     const bucket = env.VIDEO_BUCKET; // R2 bucket binding: just-vids
     
     if (!bucket) {
-      throw new Error('R2 bucket not configured');
+      throw new Error('R2 bucket not configured - check binding name');
     }
 
     await bucket.delete(videoKey);
