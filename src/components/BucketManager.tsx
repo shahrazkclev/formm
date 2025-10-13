@@ -369,26 +369,26 @@ export default function BucketManager() {
         const nextBtn = document.getElementById('nextBtn');
         
         function updateUI() {
-            // Update video source
+                // Update video source
             const currentVideo = videoData[currentVideoIndex];
-            videoElement.src = currentVideo.url;
-            videoElement.poster = currentVideo.thumbnail || '';
-            
+                videoElement.src = currentVideo.url;
+                videoElement.poster = currentVideo.thumbnail || '';
+                
             // Update video title and counter
-            videoTitle.textContent = currentVideo.name;
+                videoTitle.textContent = currentVideo.name;
             videoCounter.textContent = \`\${currentVideoIndex + 1} / \${videoData.length}\`;
-            
-            // Update button states
-            document.querySelectorAll('.btn').forEach((btn, i) => {
+                
+                // Update button states
+                document.querySelectorAll('.btn').forEach((btn, i) => {
                 btn.classList.toggle('active', i === currentVideoIndex);
-            });
+                });
             
             // Update navigation buttons
             prevBtn.disabled = currentVideoIndex === 0;
             nextBtn.disabled = currentVideoIndex === videoData.length - 1;
-            
-            // Load the video
-            videoElement.load();
+                
+                // Load the video
+                videoElement.load();
         }
         
         function playVideo(index) {
