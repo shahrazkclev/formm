@@ -93,8 +93,9 @@ async function listVideos(env, corsHeaders) {
     const videos = [];
 
     for (const object of listResult.objects) {
-      // ONLY process video files - skip thumbnails completely
+      // ONLY process video files - skip thumbnails and ALL image files
       if (object.key.startsWith('thumbnails/') || 
+          object.key.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/i) ||
           !object.key.match(/\.(mp4|webm|ogg|avi|mov|mkv)$/i)) {
         continue;
       }

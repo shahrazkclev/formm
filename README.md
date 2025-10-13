@@ -1,73 +1,33 @@
-# Welcome to your Lovable project
+# Video Anywhere Box
 
-## Project info
+A clean, professional video management tool for Cloudflare R2 storage with HTML code generation.
 
-**URL**: https://lovable.dev/projects/80c7adcf-a814-4682-910c-4999a3b03515
+## Features
 
-## How can I edit this code?
+- 🎬 **Video Management**: Upload, preview, and delete videos from your R2 bucket
+- 🖼️ **Thumbnail Support**: Add custom thumbnails to your videos
+- 📋 **Code Generation**: Generate embeddable HTML code for your videos
+- 🚀 **Easy Deployment**: Ready for Netlify deployment
 
-There are several ways of editing your application.
+## Quick Start
 
-**Use Lovable**
+1. **Deploy the Worker**: Copy the code from `worker.js` to your Cloudflare Worker
+2. **Configure R2**: Bind your R2 bucket named `just-vids` to the worker
+3. **Run the App**: 
+   ```bash
+   npm install
+   npm run dev
+   ```
+4. **Enter Worker URL**: Use `https://your-worker.your-subdomain.workers.dev`
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/80c7adcf-a814-4682-910c-4999a3b03515) and start prompting.
+## Deployment
 
-Changes made via Lovable will be committed automatically to this repo.
+The app is ready for Netlify deployment. Just connect your GitHub repository and deploy!
 
-**Use your preferred IDE**
+## Worker Setup
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Your Cloudflare Worker needs:
+- R2 bucket binding named `just-vids`
+- The code from `worker.js`
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/80c7adcf-a814-4682-910c-4999a3b03515) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+That's it! Clean, simple, and professional.
