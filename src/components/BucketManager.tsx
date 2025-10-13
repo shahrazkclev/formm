@@ -640,67 +640,170 @@ const BucketManager = () => {
         </div>
       </Card>
 
-      {/* Video List */}
+      {/* Video Gallery */}
       {videos.length > 0 && (
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Videos in Bucket ({videos.length})</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-bold flex items-center gap-2">
+              🎬 Video Gallery ({videos.length})
+            </h3>
             <div className="flex items-center gap-2">
+              <Label htmlFor="show-thumbnails" className="text-sm font-medium">Show Thumbnails</Label>
               <Switch
                 checked={showThumbnails}
                 onCheckedChange={setShowThumbnails}
                 id="show-thumbnails"
               />
-              <Label htmlFor="show-thumbnails" className="text-sm">
-                Show Thumbnails
-              </Label>
             </div>
           </div>
           
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {videos.map((video, index) => (
-              <div key={index} className="flex items-center gap-4 p-4 bg-secondary rounded-lg border border-border/50">
-                {showThumbnails && video.thumbnail && (
-                  <div className="w-20 h-12 bg-muted rounded overflow-hidden flex-shrink-0">
+              <div key={index} className="group relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:scale-105 hover:border-blue-300 dark:hover:border-blue-600">
+                {/* Video Preview/Thumbnail */}
+                <div className="relative aspect-video bg-gray-200 dark:bg-gray-700">
+                  {showThumbnails && video.thumbnail ? (
                     <img 
                       src={video.thumbnail} 
                       alt={video.key}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling.style.display = 'flex';
                       }}
                     />
+                  ) : null}
+                  <div className={`w-full h-full flex items-center justify-center ${showThumbnails && video.thumbnail ? 'hidden' : 'flex'}`}>
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg">
+                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M8 5v10l8-5-8-5z"/>
+                        </svg>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Video Preview</p>
+                    </div>
                   </div>
-                )}
-                
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{video.key}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(video.size / 1024 / 1024).toFixed(2)} MB • {new Date(video.lastModified).toLocaleDateString()}
-                  </p>
+                  
+                  {/* Play Button Overlay */}
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
+                    <div className="w-16 h-16 bg-white bg-opacity-95 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform scale-75 group-hover:scale-100">
+                      <svg className="w-8 h-8 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M8 5v10l8-5-8-5z"/>
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  {/* Video Quality Badge */}
+                  <div className="absolute top-3 right-3 bg-black bg-opacity-80 text-white text-xs px-2 py-1 rounded-full font-medium">
+                    {video.size > 20000000 ? 'HD' : video.size > 10000000 ? 'SD+' : 'SD'}
+                  </div>
+                  
+                  {/* Video Index */}
+                  <div className="absolute top-3 left-3 bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                    #{index + 1}
+                  </div>
                 </div>
                 
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => window.open(video.url, '_blank')}
-                  >
-                    Preview
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      navigator.clipboard.writeText(video.url);
-                      toast.success("Video URL copied to clipboard");
-                    }}
-                  >
-                    Copy URL
-                  </Button>
+                {/* Video Info */}
+                <div className="p-5">
+                  <h4 className="font-semibold text-sm mb-3 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight">
+                    {video.key.replace(/\.[^/.]+$/, "")}
+                  </h4>
+                  
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"/>
+                      </svg>
+                      {(video.size / 1024 / 1024).toFixed(1)} MB
+                    </span>
+                    <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+                      </svg>
+                      {new Date(video.lastModified).toLocaleDateString()}
+                    </span>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs font-medium hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 dark:hover:text-blue-400"
+                      onClick={() => {
+                        const videoUrl = video.url;
+                        navigator.clipboard.writeText(videoUrl);
+                        toast.success("Video URL copied to clipboard!");
+                      }}
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copy URL
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-medium hover:bg-green-50 hover:border-green-300 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:border-green-600 dark:hover:text-green-400"
+                      onClick={() => window.open(video.url, '_blank')}
+                    >
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                        <path d="M5 5a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                      </svg>
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Video Player Preview */}
+      {videos.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+            🎥 Video Player Preview
+          </h3>
+          <div className="space-y-4">
+            <div className="flex gap-2 flex-wrap">
+              {videos.map((video, index) => (
+                <Button
+                  key={index}
+                  variant={index === 0 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    // Set the first video as default for preview
+                    const videoElement = document.getElementById('preview-video') as HTMLVideoElement;
+                    if (videoElement) {
+                      videoElement.src = video.url;
+                      videoElement.load();
+                    }
+                  }}
+                  className="text-xs"
+                >
+                  Video {index + 1}
+                </Button>
+              ))}
+            </div>
+            
+            <div className="relative">
+              <video
+                id="preview-video"
+                controls
+                className="w-full rounded-lg shadow-lg"
+                style={{ maxHeight: '400px' }}
+                preload="metadata"
+                crossOrigin="anonymous"
+                playsInline
+              >
+                <source src={videos[0]?.url} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+              <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                Preview Mode
+              </div>
+            </div>
           </div>
         </Card>
       )}
