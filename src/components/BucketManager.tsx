@@ -135,10 +135,27 @@ export default function BucketManager() {
       return;
     }
 
-    const videoData = videos.map(video => ({
+    // Filter out thumbnail files and only include actual videos
+    const actualVideos = videos.filter(video => 
+      !video.key.startsWith('thumbnails/') && 
+      !video.key.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/i)
+    );
+
+    if (actualVideos.length === 0) {
+      toast.error('No actual video files found');
+      return;
+    }
+
+    const videoData = actualVideos.map(video => ({
       url: video.url,
-      thumbnail: video.thumbnail || ''
+      thumbnail: video.thumbnail || '',
+      name: video.key
     }));
+
+    // Generate dynamic buttons based on actual video count
+    const buttonsHtml = videoData.map((_, index) => 
+      `<button class="btn" onclick="playVideo(${index})">Video ${index + 1}</button>`
+    ).join('\n            ');
 
     const htmlCode = `<!DOCTYPE html>
 <html lang="en">
@@ -154,18 +171,20 @@ export default function BucketManager() {
         .btn { padding: 8px 16px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; }
         .btn:hover { background: #0056b3; }
         .btn.active { background: #28a745; }
+        .video-info { padding: 10px 15px; background: #e9ecef; font-size: 14px; color: #666; }
     </style>
 </head>
 <body>
     <div class="video-container">
-        <video id="videoPlayer" controls poster="">
-            <source src="" type="video/mp4">
+        <video id="videoPlayer" controls poster="${videoData[0]?.thumbnail || ''}">
+            <source src="${videoData[0]?.url || ''}" type="video/mp4">
             Your browser does not support the video tag.
         </video>
+        <div class="video-info">
+            <span id="videoTitle">${videoData[0]?.name || 'Video 1'}</span>
+        </div>
         <div class="controls">
-            <button class="btn" onclick="playVideo(0)">Video 1</button>
-            <button class="btn" onclick="playVideo(1)">Video 2</button>
-            <button class="btn" onclick="playVideo(2)">Video 3</button>
+            ${buttonsHtml}
         </div>
     </div>
 
@@ -173,18 +192,27 @@ export default function BucketManager() {
         const videoData = ${JSON.stringify(videoData, null, 2)};
         let currentVideoIndex = 0;
         const videoElement = document.getElementById('videoPlayer');
+        const videoTitle = document.getElementById('videoTitle');
         
         function playVideo(index) {
             if (index >= 0 && index < videoData.length) {
                 currentVideoIndex = index;
                 const currentVideo = videoData[index];
+                
+                // Update video source
                 videoElement.src = currentVideo.url;
-                videoElement.poster = currentVideo.thumbnail;
+                videoElement.poster = currentVideo.thumbnail || '';
+                
+                // Update video title
+                videoTitle.textContent = currentVideo.name;
                 
                 // Update button states
                 document.querySelectorAll('.btn').forEach((btn, i) => {
                     btn.classList.toggle('active', i === index);
                 });
+                
+                // Load the video
+                videoElement.load();
             }
         }
         
@@ -192,6 +220,12 @@ export default function BucketManager() {
         if (videoData.length > 0) {
             playVideo(0);
         }
+        
+        // Handle video errors
+        videoElement.addEventListener('error', function(e) {
+            console.error('Video load error:', e);
+            videoTitle.textContent = 'Error loading video';
+        });
     </script>
 </body>
 </html>`;
