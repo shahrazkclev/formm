@@ -1,9 +1,11 @@
 import { useState } from "react";
 import VideoContainer from "@/components/VideoContainer";
+import BucketManager from "@/components/BucketManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Copy, Check, Plus, X } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Copy, Check, Plus, X, Database, Code } from "lucide-react";
 
 const Index = () => {
   const [videoUrls, setVideoUrls] = useState<string[]>([]);
@@ -68,13 +70,28 @@ const Index = () => {
         {/* Header */}
         <header className="text-center space-y-4">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-            Universal Video Carousel
+            Video Anywhere Box
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Create a video carousel from Cloudflare R2, Supabase Storage, YouTube, or any direct video URL.
-            Add multiple videos and navigate with arrows.
+            Create video carousels from Cloudflare R2, Supabase Storage, YouTube, or any direct video URL.
+            Generate embeddable HTML code for your website.
           </p>
         </header>
+
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="manual" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual" className="flex items-center gap-2">
+              <Code className="w-4 h-4" />
+              Manual Setup
+            </TabsTrigger>
+            <TabsTrigger value="bucket" className="flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              Cloudflare R2 Bucket
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="manual" className="space-y-12">
 
         {/* Video URL Management */}
         <section className="space-y-6">
@@ -294,6 +311,12 @@ const Index = () => {
             </ul>
           </Card>
         </section>
+          </TabsContent>
+          
+          <TabsContent value="bucket" className="space-y-6">
+            <BucketManager />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

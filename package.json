@@ -1,7 +1,8 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "video-anywhere-box",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Universal video carousel with Cloudflare R2 integration and HTML code generation",
   "type": "module",
   "scripts": {
     "dev": "vite",
