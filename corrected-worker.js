@@ -94,13 +94,17 @@ async function listVideos(env, corsHeaders) {
       throw new Error('R2 bucket not configured - check binding name');
     }
 
-    console.log('Listing videos from R2 bucket: just-vids');
     const listResult = await bucket.list();
-    console.log('Raw list result:', listResult);
 
     const videos = [];
 
         for (const object of listResult.objects) {
+          // Skip thumbnail files - only process actual video files
+          if (object.key.startsWith('thumbnails/') || 
+              !object.key.match(/\.(mp4|webm|ogg|avi|mov|mkv)$/i)) {
+            continue;
+          }
+          
           // Use your public R2 URL
           const publicUrl = `https://pub-6b835e0399ff468abaeb2e4e04ce57c7.r2.dev/${object.key}`;
           
@@ -108,7 +112,7 @@ async function listVideos(env, corsHeaders) {
           const thumbnailKey = `thumbnails/${object.key.replace(/\.[^/.]+$/, "")}.jpg`;
           const thumbnailUrl = `https://pub-6b835e0399ff468abaeb2e4e04ce57c7.r2.dev/${thumbnailKey}`;
           
-          // Try to check if thumbnail exists (optional - you can remove this check if you want)
+          // Check if thumbnail exists
           let hasThumbnail = false;
           try {
             const thumbnailCheck = await bucket.head(thumbnailKey);
@@ -128,7 +132,6 @@ async function listVideos(env, corsHeaders) {
           });
         }
 
-    console.log('Processed videos:', videos);
     return new Response(JSON.stringify({ videos }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

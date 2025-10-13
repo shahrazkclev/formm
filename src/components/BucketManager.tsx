@@ -89,7 +89,7 @@ const BucketManager = () => {
             thumbnail: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg"
           }
         ]);
-        toast.success("Demo mode: Loaded 2 sample videos with thumbnails");
+        toast.success("Demo mode: Loaded 2 sample videos");
         setLoading(false);
       }, 1000);
       return;
@@ -198,11 +198,6 @@ const BucketManager = () => {
     const fileToUpload = file || thumbnailFile;
     const videoToUse = videoKey || selectedVideoForThumbnail;
     
-    console.log('Upload thumbnail called with:', { 
-      file: fileToUpload?.name, 
-      videoKey: videoToUse, 
-      bucketUrl 
-    });
     
     if (!fileToUpload || !videoToUse || !bucketUrl) {
       toast.error("Please select a thumbnail file and video");
@@ -215,29 +210,22 @@ const BucketManager = () => {
       formData.append('file', fileToUpload);
       formData.append('videoKey', videoToUse);
 
-      console.log('Sending thumbnail upload request to:', `${bucketUrl}/upload-thumbnail`);
-      
       const response = await fetch(`${bucketUrl}/upload-thumbnail`, {
         method: 'POST',
         body: formData,
       });
 
-      console.log('Thumbnail upload response:', response.status, response.statusText);
-
       if (response.ok) {
         const result = await response.json();
-        console.log('Thumbnail upload success:', result);
         toast.success(`Thumbnail for ${videoToUse} uploaded successfully!`);
         fetchVideos(); // Refresh the video list
         setThumbnailFile(null);
         setSelectedVideoForThumbnail("");
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Thumbnail upload failed' }));
-        console.error('Thumbnail upload failed:', errorData);
         throw new Error(errorData.error || `Thumbnail upload failed (${response.status})`);
       }
     } catch (error) {
-      console.error('Thumbnail upload error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Thumbnail upload failed';
       toast.error(`Thumbnail upload failed: ${errorMessage}`);
     } finally {
@@ -757,7 +745,6 @@ const BucketManager = () => {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          console.log('Uploading thumbnail for:', video.key, 'File:', file.name);
                           await uploadThumbnail(file, video.key);
                         }
                       }}
