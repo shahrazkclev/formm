@@ -124,9 +124,29 @@ export default function BucketManager() {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard!');
+  const copyToClipboard = async (text: string) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        toast.success('Copied to clipboard!');
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+        toast.success('Copied to clipboard!');
+      }
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      toast.error('Failed to copy to clipboard');
+    }
   };
 
   const generateCodeSnippet = () => {
@@ -134,6 +154,8 @@ export default function BucketManager() {
       toast.error('No videos to generate code for');
       return;
     }
+    
+    console.log('Generating code snippet for', videos.length, 'videos');
 
     // Filter out thumbnail files and only include actual videos
     const actualVideos = videos.filter(video => 
@@ -230,6 +252,7 @@ export default function BucketManager() {
 </body>
 </html>`;
 
+    console.log('Generated HTML code length:', htmlCode.length);
     copyToClipboard(htmlCode);
   };
 
