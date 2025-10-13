@@ -93,12 +93,16 @@ const BucketManager = () => {
     setLoading(true);
     try {
       const response = await fetch(`${bucketUrl}/list-videos`);
+      console.log('Fetch response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('API Response data:', data);
         setVideos(data.videos || []);
         toast.success(`Found ${data.videos?.length || 0} videos`);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Failed to fetch videos' }));
+        console.error('API Error response:', errorData);
         throw new Error(errorData.error || `Failed to fetch videos (${response.status})`);
       }
     } catch (error) {
@@ -438,14 +442,48 @@ const BucketManager = () => {
         {bucketUrl && (
           <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded-lg border">
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${videos.length > 0 ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+              <div className={`w-3 h-3 rounded-full ${
+                videos.length > 0 ? 'bg-green-500' : 
+                loading ? 'bg-blue-500 animate-pulse' : 
+                'bg-yellow-500'
+              }`}></div>
               <span className="text-sm font-medium">
-                {videos.length > 0 ? 'Connected' : 'Not Connected'} to Bucket
+                {videos.length > 0 ? `Connected (${videos.length} videos)` : 
+                 loading ? 'Connecting...' : 
+                 'Worker Ready - Bucket Empty'}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Worker URL: {bucketUrl}
             </p>
+            {videos.length === 0 && !loading && (
+              <div className="mt-2">
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  💡 Upload some videos to see them here, or enable Demo Mode to test
+                </p>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="mt-2 text-xs"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'video/*';
+                    input.onchange = (e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setUploadFile(file);
+                        uploadVideo();
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <Upload className="w-3 h-3 mr-1" />
+                  Quick Upload Test
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>
