@@ -188,8 +188,10 @@ export default function BucketManager() {
   };
 
   const generateCodeSnippet = async () => {
+    console.log('Button clicked! Videos:', videos.length);
+    
     if (videos.length === 0) {
-      toast.error('No videos to generate code for');
+      toast.error('No videos to generate code for. Please add some videos first.');
       return;
     }
     
@@ -516,12 +518,10 @@ export default function BucketManager() {
                 Worker: {bucketUrl}
               </p>
             </div>
-            {videos.length > 0 && (
-              <Button onClick={generateCodeSnippet} className="bg-green-600 hover:bg-green-700">
-                <Download className="w-4 h-4 mr-2" />
-                Generate HTML Code
-              </Button>
-            )}
+            <Button onClick={generateCodeSnippet} className="bg-green-600 hover:bg-green-700">
+              <Download className="w-4 h-4 mr-2" />
+              Generate HTML Code
+            </Button>
           </div>
         </CardContent>
       </Card>
