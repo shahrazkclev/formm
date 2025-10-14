@@ -602,29 +602,57 @@ export default function BucketManager() {
                     </div>
                     
                     <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => setSelectedVideo(video)}
+                      <button 
+                        onClick={() => {
+                          console.log('Preview clicked for:', video.key);
+                          setSelectedVideo(video);
+                        }}
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: 'hsl(var(--foreground))',
+                          padding: '6px 12px',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
                       >
-                        <Play className="w-4 h-4 mr-1" />
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polygon points="5,3 19,12 5,21"/>
+                        </svg>
                         Preview
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
+                      </button>
+                      <button 
                         onClick={async () => {
                           try {
                             await copyToClipboard(video.url);
-                            toast.success('Video URL copied to clipboard!');
+                            alert('Video URL copied to clipboard!');
                           } catch (error) {
-                            toast.error('Failed to copy URL');
+                            alert('Failed to copy URL');
                           }
                         }}
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: 'hsl(var(--foreground))',
+                          padding: '6px 12px',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
                       >
-                        <Copy className="w-4 h-4 mr-1" />
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
                         Copy URL
-                      </Button>
+                      </button>
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -772,27 +800,56 @@ export default function BucketManager() {
                 </video>
                 
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline"
+                  <button 
                     onClick={() => window.open(selectedVideo.url, '_blank')}
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: 'hsl(var(--foreground))',
+                      padding: '8px 16px',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
                   >
-                    <ExternalLink className="w-4 h-4 mr-2" />
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15,3 21,3 21,9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
                     Open Direct Link
-                  </Button>
-                  <Button 
-                    variant="outline"
+                  </button>
+                  <button 
                     onClick={async () => {
                       try {
                         await copyToClipboard(selectedVideo.url);
-                        toast.success('Video URL copied to clipboard!');
+                        alert('Video URL copied to clipboard!');
                       } catch (error) {
-                        toast.error('Failed to copy URL');
+                        alert('Failed to copy URL');
                       }
                     }}
+                    style={{
+                      backgroundColor: 'transparent',
+                      color: 'hsl(var(--foreground))',
+                      padding: '8px 16px',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
                   >
-                    <Copy className="w-4 h-4 mr-2" />
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
                     Copy URL
-                  </Button>
+                  </button>
                 </div>
               </CardContent>
             </Card>
