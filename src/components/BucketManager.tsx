@@ -468,15 +468,20 @@ export default function BucketManager() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6 bg-background text-foreground">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-foreground">Video Anywhere Box</h1>
-        <p className="text-muted-foreground">Manage your Cloudflare R2 videos and generate embeddable code</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-4 py-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Video Anywhere Box
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Manage your Cloudflare R2 videos and generate embeddable code with a beautiful video carousel
+          </p>
+        </div>
 
       {/* Connection Status */}
-      <Card>
+      <Card className="border-2 border-primary/20 shadow-lg backdrop-blur-sm bg-card/80">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full ${
@@ -521,7 +526,7 @@ export default function BucketManager() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="videos" className="space-y-4">
+      <Tabs defaultValue="videos" className="space-y-6">
         <TabsList>
           <TabsTrigger value="videos">Videos ({videos.length})</TabsTrigger>
           <TabsTrigger value="player">Video Player</TabsTrigger>
@@ -776,6 +781,7 @@ export default function BucketManager() {
           )}
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
