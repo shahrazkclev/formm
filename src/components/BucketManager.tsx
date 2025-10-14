@@ -188,17 +188,15 @@ export default function BucketManager() {
   };
 
   const generateCodeSnippet = async () => {
-    console.log('Button clicked! Videos:', videos.length);
-    alert('Button clicked! Videos: ' + videos.length);
+    console.log('Generating HTML for videos:', videos.length);
     
     if (videos.length === 0) {
       alert('No videos to generate code for. Please add some videos first.');
-      toast.error('No videos to generate code for. Please add some videos first.');
       return;
     }
     
-    console.log('Generating code snippet for', videos.length, 'videos');
-    toast.loading('Generating HTML code...', { id: 'generating' });
+    console.log('Starting HTML generation...');
+    alert('Generating HTML code...');
 
     // Filter out thumbnail files and only include actual videos
     const actualVideos = videos.filter(video => 
@@ -455,11 +453,11 @@ export default function BucketManager() {
     
     try {
       await copyToClipboard(htmlCode);
-      toast.dismiss('generating');
-      toast.success('HTML code generated and copied to clipboard!');
+      alert('HTML code generated and copied to clipboard!');
+      console.log('HTML code copied successfully');
     } catch (error) {
-      toast.dismiss('generating');
-      toast.error('Failed to copy HTML code to clipboard');
+      console.error('Failed to copy:', error);
+      alert('Failed to copy HTML code to clipboard');
     }
   };
 
@@ -522,8 +520,8 @@ export default function BucketManager() {
             </div>
             <button 
               onClick={() => {
-                console.log('Simple button clicked!');
-                alert('Simple button clicked!');
+                console.log('Generate HTML button clicked!');
+                generateCodeSnippet();
               }}
               style={{
                 backgroundColor: '#16a34a',
@@ -533,10 +531,18 @@ export default function BucketManager() {
                 borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '14px',
-                fontWeight: '500'
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}
             >
-              Test Button
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7,10 12,15 17,10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Generate HTML Code
             </button>
           </div>
         </CardContent>
@@ -694,11 +700,16 @@ export default function BucketManager() {
                 </p>
               </CardHeader>
               <CardContent>
-                <VideoContainer 
-                  urls={videos.map(video => video.url)}
-                  title="Video Player"
-                  className="max-w-4xl mx-auto"
-                />
+                <div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Video URLs: {videos.map(video => video.url).join(', ')}
+                  </p>
+                  <VideoContainer 
+                    urls={videos.map(video => video.url)}
+                    title="Video Player"
+                    className="max-w-4xl mx-auto"
+                  />
+                </div>
               </CardContent>
             </Card>
           )}
