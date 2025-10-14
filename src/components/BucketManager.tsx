@@ -520,14 +520,24 @@ export default function BucketManager() {
                 Worker: {bucketUrl}
               </p>
             </div>
-            <Button onClick={() => {
-              console.log('Button clicked directly!');
-              alert('Button clicked directly!');
-              generateCodeSnippet();
-            }} className="bg-green-600 hover:bg-green-700">
-              <Download className="w-4 h-4 mr-2" />
-              Generate HTML Code
-            </Button>
+            <button 
+              onClick={() => {
+                console.log('Simple button clicked!');
+                alert('Simple button clicked!');
+              }}
+              style={{
+                backgroundColor: '#16a34a',
+                color: 'white',
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              Test Button
+            </button>
           </div>
         </CardContent>
       </Card>
