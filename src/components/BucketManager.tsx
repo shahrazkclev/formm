@@ -49,6 +49,7 @@ export default function BucketManager() {
   const [borderRadius, setBorderRadius] = useState(12);
   const [showArrows, setShowArrows] = useState(true);
   const [arrowSize, setArrowSize] = useState(40);
+  const [arrowStyle, setArrowStyle] = useState('chevron'); // chevron, arrow, triangle, circle
   const [autoplay, setAutoplay] = useState(false);
   const [backgroundColor, setBackgroundColor] = useState('#000000');
   const [arrowColor, setArrowColor] = useState('#ffffff');
@@ -57,6 +58,50 @@ export default function BucketManager() {
   
   // Calculate aspect ratio percentage
   const aspectRatio = (aspectHeight / aspectWidth) * 100;
+
+  // Arrow icon options
+  const arrowIcons = {
+    chevron: { left: '‹', right: '›' },
+    arrow: { left: '←', right: '→' },
+    triangle: { left: '◀', right: '▶' },
+    circle: { left: '⬅', right: '➡' }
+  };
+
+  // Theme presets
+  const applyTheme = (theme: string) => {
+    switch(theme) {
+      case 'dark':
+        setBackgroundColor('#000000');
+        setArrowColor('#ffffff');
+        setArrowBgColor('rgba(0,0,0,0.7)');
+        setShadowColor('rgba(0,0,0,0.3)');
+        break;
+      case 'light':
+        setBackgroundColor('#ffffff');
+        setArrowColor('#000000');
+        setArrowBgColor('rgba(255,255,255,0.9)');
+        setShadowColor('rgba(0,0,0,0.1)');
+        break;
+      case 'blue':
+        setBackgroundColor('#1e40af');
+        setArrowColor('#ffffff');
+        setArrowBgColor('rgba(59,130,246,0.8)');
+        setShadowColor('rgba(30,64,175,0.3)');
+        break;
+      case 'purple':
+        setBackgroundColor('#7c3aed');
+        setArrowColor('#ffffff');
+        setArrowBgColor('rgba(167,139,250,0.8)');
+        setShadowColor('rgba(124,58,237,0.3)');
+        break;
+      case 'gradient':
+        setBackgroundColor('linear-gradient(135deg, #667eea 0%, #764ba2 100%)');
+        setArrowColor('#ffffff');
+        setArrowBgColor('rgba(0,0,0,0.5)');
+        setShadowColor('rgba(0,0,0,0.2)');
+        break;
+    }
+  };
 
   // Auto-fetch videos on component load
   useEffect(() => {
@@ -213,12 +258,13 @@ export default function BucketManager() {
     }));
 
     // Generate clean embeddable HTML with customization
+    const currentArrows = arrowIcons[arrowStyle as keyof typeof arrowIcons];
     const htmlCode = `<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
     <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: ${backgroundColor}; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px ${shadowColor};">
         <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;"></video>
     </div>
-    ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">‹</button>
-    <button onclick="vidNext()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">›</button>` : ''}
+    ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.left}</button>
+    <button onclick="vidNext()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.right}</button>` : ''}
 </div>
 <script>
 const vids=${JSON.stringify(videoData)};let i=0;const v=document.getElementById('vp');
@@ -344,6 +390,17 @@ vidLoad();
                 <CardTitle>Player Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Theme Presets</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('dark')}>Dark</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('light')}>Light</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('blue')}>Blue</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('purple')}>Purple</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('gradient')}>Gradient</Button>
+                  </div>
+                </div>
+
                 <div>
                   <Label>Max Width: {maxWidth}px</Label>
                   <Slider
@@ -409,17 +466,45 @@ vidLoad();
                 </div>
 
                 {showArrows && (
-                  <div>
-                    <Label>Arrow Size: {arrowSize}px</Label>
-                    <Slider
-                      value={[arrowSize]}
-                      onValueChange={(val) => setArrowSize(val[0])}
-                      min={30}
-                      max={60}
-                      step={5}
-                      className="mt-2"
-                    />
-                  </div>
+                  <>
+                    <div>
+                      <Label>Arrow Size: {arrowSize}px</Label>
+                      <Slider
+                        value={[arrowSize]}
+                        onValueChange={(val) => setArrowSize(val[0])}
+                        min={30}
+                        max={60}
+                        step={5}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Arrow Style</Label>
+                      <div className="grid grid-cols-4 gap-2">
+                        <Button 
+                          size="sm" 
+                          variant={arrowStyle === 'chevron' ? 'default' : 'outline'}
+                          onClick={() => setArrowStyle('chevron')}
+                        >‹ ›</Button>
+                        <Button 
+                          size="sm" 
+                          variant={arrowStyle === 'arrow' ? 'default' : 'outline'}
+                          onClick={() => setArrowStyle('arrow')}
+                        >← →</Button>
+                        <Button 
+                          size="sm" 
+                          variant={arrowStyle === 'triangle' ? 'default' : 'outline'}
+                          onClick={() => setArrowStyle('triangle')}
+                        >◀ ▶</Button>
+                        <Button 
+                          size="sm" 
+                          variant={arrowStyle === 'circle' ? 'default' : 'outline'}
+                          onClick={() => setArrowStyle('circle')}
+                        >⬅ ➡</Button>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 <div className="flex items-center justify-between">
@@ -563,7 +648,7 @@ vidLoad();
                           fontSize: `${arrowSize * 0.5}px`,
                           opacity: 0.7,
                           zIndex: 10
-                        }}>‹</div>
+                        }}>{arrowIcons[arrowStyle as keyof typeof arrowIcons].left}</div>
                         <div style={{
                           position: 'absolute',
                           right: '10px',
@@ -581,7 +666,7 @@ vidLoad();
                           fontSize: `${arrowSize * 0.5}px`,
                           opacity: 0.7,
                           zIndex: 10
-                        }}>›</div>
+                        }}>{arrowIcons[arrowStyle as keyof typeof arrowIcons].right}</div>
                       </>
                     )}
                   </div>
