@@ -44,10 +44,15 @@ export default function BucketManager() {
   
   // Player Customization Settings
   const [maxWidth, setMaxWidth] = useState(600);
+  const [aspectWidth, setAspectWidth] = useState(16);
+  const [aspectHeight, setAspectHeight] = useState(9);
   const [borderRadius, setBorderRadius] = useState(12);
   const [showArrows, setShowArrows] = useState(true);
   const [arrowSize, setArrowSize] = useState(40);
   const [autoplay, setAutoplay] = useState(false);
+  
+  // Calculate aspect ratio percentage
+  const aspectRatio = (aspectHeight / aspectWidth) * 100;
 
   // Auto-fetch videos on component load
   useEffect(() => {
@@ -205,7 +210,7 @@ export default function BucketManager() {
 
     // Generate clean embeddable HTML with customization
     const htmlCode = `<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
-    <div style="position: relative; width: 100%; padding-bottom: 56.25%; background: #000; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+    <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: #000; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
         <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;"></video>
     </div>
     ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">‹</button>
@@ -347,6 +352,38 @@ vidLoad();
                   />
                 </div>
 
+                <div className="space-y-3">
+                  <Label>Aspect Ratio: {aspectWidth}:{aspectHeight} ({(aspectWidth/aspectHeight).toFixed(2)})</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Width</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={aspectWidth}
+                        onChange={(e) => setAspectWidth(parseFloat(e.target.value) || 16)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Height</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={aspectHeight}
+                        onChange={(e) => setAspectHeight(parseFloat(e.target.value) || 9)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(16); setAspectHeight(9); }}>16:9</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(4); setAspectHeight(3); }}>4:3</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(1); setAspectHeight(1); }}>1:1</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(21); setAspectHeight(9); }}>21:9</Button>
+                  </div>
+                </div>
+
                 <div>
                   <Label>Border Radius: {borderRadius}px</Label>
                   <Slider
@@ -412,7 +449,7 @@ vidLoad();
                     <div style={{ 
                       position: 'relative',
                       width: '100%',
-                      paddingBottom: '56.25%',
+                      paddingBottom: `${aspectRatio.toFixed(2)}%`,
                       background: '#000', 
                       borderRadius: `${borderRadius}px`, 
                       overflow: 'hidden', 
