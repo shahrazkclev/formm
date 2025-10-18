@@ -50,6 +50,10 @@ export default function BucketManager() {
   const [showArrows, setShowArrows] = useState(true);
   const [arrowSize, setArrowSize] = useState(40);
   const [autoplay, setAutoplay] = useState(false);
+  const [backgroundColor, setBackgroundColor] = useState('#000000');
+  const [arrowColor, setArrowColor] = useState('#ffffff');
+  const [arrowBgColor, setArrowBgColor] = useState('rgba(0,0,0,0.5)');
+  const [shadowColor, setShadowColor] = useState('rgba(0,0,0,0.15)');
   
   // Calculate aspect ratio percentage
   const aspectRatio = (aspectHeight / aspectWidth) * 100;
@@ -210,11 +214,11 @@ export default function BucketManager() {
 
     // Generate clean embeddable HTML with customization
     const htmlCode = `<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
-    <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: #000; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+    <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: ${backgroundColor}; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px ${shadowColor};">
         <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;"></video>
     </div>
-    ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">‹</button>
-    <button onclick="vidNext()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">›</button>` : ''}
+    ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">‹</button>
+    <button onclick="vidNext()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">›</button>` : ''}
 </div>
 <script>
 const vids=${JSON.stringify(videoData)};let i=0;const v=document.getElementById('vp');
@@ -426,6 +430,76 @@ vidLoad();
                   />
                 </div>
 
+                <div className="space-y-3 pt-4 border-t">
+                  <Label className="text-sm font-semibold">Colors</Label>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Background</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          type="color"
+                          value={backgroundColor}
+                          onChange={(e) => setBackgroundColor(e.target.value)}
+                          className="w-12 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          type="text"
+                          value={backgroundColor}
+                          onChange={(e) => setBackgroundColor(e.target.value)}
+                          className="flex-1 text-xs"
+                          placeholder="#000000"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Shadow</Label>
+                      <Input
+                        type="text"
+                        value={shadowColor}
+                        onChange={(e) => setShadowColor(e.target.value)}
+                        className="mt-1 text-xs"
+                        placeholder="rgba(0,0,0,0.15)"
+                      />
+                    </div>
+                  </div>
+
+                  {showArrows && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Arrow Color</Label>
+                        <div className="flex gap-2 mt-1">
+                          <Input
+                            type="color"
+                            value={arrowColor}
+                            onChange={(e) => setArrowColor(e.target.value)}
+                            className="w-12 h-9 p-1 cursor-pointer"
+                          />
+                          <Input
+                            type="text"
+                            value={arrowColor}
+                            onChange={(e) => setArrowColor(e.target.value)}
+                            className="flex-1 text-xs"
+                            placeholder="#ffffff"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Arrow BG</Label>
+                        <Input
+                          type="text"
+                          value={arrowBgColor}
+                          onChange={(e) => setArrowBgColor(e.target.value)}
+                          className="mt-1 text-xs"
+                          placeholder="rgba(0,0,0,0.5)"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <Button 
                   onClick={generateCodeSnippet}
                   className="w-full"
@@ -450,10 +524,10 @@ vidLoad();
                       position: 'relative',
                       width: '100%',
                       paddingBottom: `${aspectRatio.toFixed(2)}%`,
-                      background: '#000', 
+                      background: backgroundColor, 
                       borderRadius: `${borderRadius}px`, 
                       overflow: 'hidden', 
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)' 
+                      boxShadow: `0 4px 20px ${shadowColor}` 
                     }}>
                       <video 
                         controls 
@@ -477,9 +551,9 @@ vidLoad();
                           left: '10px',
                           top: '50%',
                           transform: 'translateY(-50%)',
-                          background: 'rgba(0,0,0,0.5)',
+                          background: arrowBgColor,
                           border: 'none',
-                          color: 'white',
+                          color: arrowColor,
                           width: `${arrowSize}px`,
                           height: `${arrowSize}px`,
                           borderRadius: '50%',
@@ -495,9 +569,9 @@ vidLoad();
                           right: '10px',
                           top: '50%',
                           transform: 'translateY(-50%)',
-                          background: 'rgba(0,0,0,0.5)',
+                          background: arrowBgColor,
                           border: 'none',
-                          color: 'white',
+                          color: arrowColor,
                           width: `${arrowSize}px`,
                           height: `${arrowSize}px`,
                           borderRadius: '50%',
