@@ -42,19 +42,12 @@ export default function BucketManager() {
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   
-  // Player Settings
-  const [playerSettings, setPlayerSettings] = useState<PlayerSettings>({
-    width: 800,
-    height: 450,
-    autoplay: false,
-    loop: false,
-    muted: false,
-    controls: true,
-    showTitle: true,
-    showButtons: true,
-    buttonStyle: 'modern',
-    theme: 'light'
-  });
+  // Player Customization Settings
+  const [maxWidth, setMaxWidth] = useState(600);
+  const [borderRadius, setBorderRadius] = useState(12);
+  const [showArrows, setShowArrows] = useState(true);
+  const [arrowSize, setArrowSize] = useState(40);
+  const [autoplay, setAutoplay] = useState(false);
 
   // Auto-fetch videos on component load
   useEffect(() => {
@@ -210,155 +203,22 @@ export default function BucketManager() {
       name: video.key
     }));
 
-    //Generate clean embeddable HTML
-    const htmlCode = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Player</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: transparent;
-        }
-        .video-player {
-            max-width: 800px;
-            margin: 0 auto;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        }
-        video {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .controls {
-            background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9));
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        .control-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-        .control-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        .control-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        .video-list {
-            display: flex;
-            gap: 8px;
-            flex: 1;
-            flex-wrap: wrap;
-        }
-        .video-btn {
-            background: #007bff;
-            border: none;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
-        }
-        .video-btn:hover {
-            background: #0056b3;
-        }
-        .video-btn.active {
-            background: #28a745;
-        }
-        .video-info {
-            color: rgba(255,255,255,0.9);
-            font-size: 13px;
-            width: 100%;
-            margin-top: 8px;
-        }
-        @media (max-width: 768px) {
-            .controls { padding: 12px; }
-            .control-btn { padding: 6px 12px; font-size: 12px; }
-            .video-btn { padding: 5px 10px; font-size: 12px; }
-        }
-    </style>
-</head>
-<body>
-    <div class="video-player">
-        <video id="player" controls></video>
-        <div class="controls">
-            <button class="control-btn" id="prevBtn" onclick="prev()">← Prev</button>
-            <button class="control-btn" id="nextBtn" onclick="next()">Next →</button>
-            <div class="video-list" id="videoList"></div>
-            <div class="video-info" id="info"></div>
-        </div>
+    // Generate clean embeddable HTML with customization
+    const arrowStyle = showArrows ? '' : 'display: none;';
+    
+    const htmlCode = `<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
+    <div style="background: #000; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="width: 100%; display: block;"></video>
     </div>
-    <script>
-        const videos = ${JSON.stringify(videoData, null, 2)};
-        let current = 0;
-        const player = document.getElementById('player');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const videoList = document.getElementById('videoList');
-        const info = document.getElementById('info');
-        
-        // Create video buttons
-        videos.forEach((video, index) => {
-            const btn = document.createElement('button');
-            btn.className = 'video-btn';
-            btn.textContent = index + 1;
-            btn.onclick = () => loadVideo(index);
-            videoList.appendChild(btn);
-        });
-        
-        function loadVideo(index) {
-            current = index;
-            player.src = videos[current].url;
-            if (videos[current].thumbnail) player.poster = videos[current].thumbnail;
-            player.load();
-            player.play();
-            updateUI();
-        }
-        
-        function updateUI() {
-            document.querySelectorAll('.video-btn').forEach((btn, i) => {
-                btn.classList.toggle('active', i === current);
-            });
-            prevBtn.disabled = current === 0;
-            nextBtn.disabled = current === videos.length - 1;
-            info.textContent = \`\${current + 1} / \${videos.length} - \${videos[current].name}\`;
-        }
-        
-        function prev() { if (current > 0) loadVideo(current - 1); }
-        function next() { if (current < videos.length - 1) loadVideo(current + 1); }
-        
-        // Keyboard navigation
-        document.addEventListener('keydown', e => {
-            if (e.key === 'ArrowLeft') prev();
-            if (e.key === 'ArrowRight') next();
-        });
-        
-        // Auto-play next video
-        player.addEventListener('ended', () => { if (current < videos.length - 1) next(); });
-        
-        // Initialize
-        loadVideo(0);
-    </script>
-</body>
-</html>`;
+    ${showArrows ? `<button onclick="prev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">‹</button>
+    <button onclick="next()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">›</button>` : ''}
+</div>
+<script>
+const vids=${JSON.stringify(videoData)};let i=0;const v=document.getElementById('vp');
+function load(){v.src=vids[i].url;if(vids[i].thumbnail)v.poster=vids[i].thumbnail;v.load();}
+function prev(){if(i>0){i--;load();}}function next(){if(i<vids.length-1){i++;load();}}
+v.addEventListener('ended',()=>{if(i<vids.length-1)next();});load();
+</script>`;
 
     console.log('Generated HTML code length:', htmlCode.length);
     
@@ -386,10 +246,10 @@ export default function BucketManager() {
         {/* Header */}
         <div className="text-center space-y-4 py-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Video Anywhere Box
+            Video Snippet Maker
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Manage your Cloudflare R2 videos and generate embeddable code with a beautiful video carousel
+            Load videos from your bucket, customize the player, and generate clean HTML snippets for your website
           </p>
         </div>
 
@@ -459,13 +319,158 @@ export default function BucketManager() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="videos" className="space-y-6">
+      <Tabs defaultValue="customize" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="customize">Customize Snippet</TabsTrigger>
           <TabsTrigger value="videos">Videos ({videos.length})</TabsTrigger>
-          <TabsTrigger value="player">Video Player</TabsTrigger>
           <TabsTrigger value="upload">Upload</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
+
+        {/* Customize Tab */}
+        <TabsContent value="customize" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Settings Panel */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Player Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <Label>Max Width: {maxWidth}px</Label>
+                  <Slider
+                    value={[maxWidth]}
+                    onValueChange={(val) => setMaxWidth(val[0])}
+                    min={300}
+                    max={1200}
+                    step={50}
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <Label>Border Radius: {borderRadius}px</Label>
+                  <Slider
+                    value={[borderRadius]}
+                    onValueChange={(val) => setBorderRadius(val[0])}
+                    min={0}
+                    max={30}
+                    step={2}
+                    className="mt-2"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label>Show Navigation Arrows</Label>
+                  <Switch
+                    checked={showArrows}
+                    onCheckedChange={setShowArrows}
+                  />
+                </div>
+
+                {showArrows && (
+                  <div>
+                    <Label>Arrow Size: {arrowSize}px</Label>
+                    <Slider
+                      value={[arrowSize]}
+                      onValueChange={(val) => setArrowSize(val[0])}
+                      min={30}
+                      max={60}
+                      step={5}
+                      className="mt-2"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <Label>Autoplay</Label>
+                  <Switch
+                    checked={autoplay}
+                    onCheckedChange={setAutoplay}
+                  />
+                </div>
+
+                <Button 
+                  onClick={generateCodeSnippet}
+                  className="w-full"
+                  size="lg"
+                  disabled={videos.length === 0}
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Generate & Copy HTML Snippet
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Live Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Live Preview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {videos.length > 0 ? (
+                  <div style={{ position: 'relative', maxWidth: `${maxWidth}px`, margin: '0 auto' }}>
+                    <div style={{ 
+                      background: '#000', 
+                      borderRadius: `${borderRadius}px`, 
+                      overflow: 'hidden', 
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)' 
+                    }}>
+                      <video 
+                        controls 
+                        autoPlay={autoplay}
+                        style={{ width: '100%', display: 'block' }}
+                        src={videos.filter(v => !v.key.startsWith('thumbnails/') && !v.key.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/i))[0]?.url}
+                      />
+                    </div>
+                    {showArrows && (
+                      <>
+                        <div style={{
+                          position: 'absolute',
+                          left: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'rgba(0,0,0,0.5)',
+                          border: 'none',
+                          color: 'white',
+                          width: `${arrowSize}px`,
+                          height: `${arrowSize}px`,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: `${arrowSize * 0.5}px`,
+                          opacity: 0.7
+                        }}>‹</div>
+                        <div style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'rgba(0,0,0,0.5)',
+                          border: 'none',
+                          color: 'white',
+                          width: `${arrowSize}px`,
+                          height: `${arrowSize}px`,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: `${arrowSize * 0.5}px`,
+                          opacity: 0.7
+                        }}>›</div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Add videos to see preview</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         {/* Videos Tab */}
         <TabsContent value="videos" className="space-y-4">
