@@ -204,20 +204,20 @@ export default function BucketManager() {
     }));
 
     // Generate clean embeddable HTML with customization
-    const arrowStyle = showArrows ? '' : 'display: none;';
-    
     const htmlCode = `<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
-    <div style="background: #000; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-        <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="width: 100%; display: block;"></video>
+    <div style="position: relative; width: 100%; padding-bottom: 56.25%; background: #000; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;"></video>
     </div>
-    ${showArrows ? `<button onclick="prev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">‹</button>
-    <button onclick="next()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">›</button>` : ''}
+    ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">‹</button>
+    <button onclick="vidNext()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); border: none; color: white; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">›</button>` : ''}
 </div>
 <script>
 const vids=${JSON.stringify(videoData)};let i=0;const v=document.getElementById('vp');
-function load(){v.src=vids[i].url;if(vids[i].thumbnail)v.poster=vids[i].thumbnail;v.load();}
-function prev(){if(i>0){i--;load();}}function next(){if(i<vids.length-1){i++;load();}}
-v.addEventListener('ended',()=>{if(i<vids.length-1)next();});load();
+function vidLoad(){v.src=vids[i].url;if(vids[i].thumbnail)v.poster=vids[i].thumbnail;v.load();v.play();}
+function vidPrev(){if(i>0){i--;vidLoad();}}
+function vidNext(){if(i<vids.length-1){i++;vidLoad();}}
+v.addEventListener('ended',()=>{if(i<vids.length-1)vidNext();});
+vidLoad();
 </script>`;
 
     console.log('Generated HTML code length:', htmlCode.length);
@@ -410,6 +410,9 @@ v.addEventListener('ended',()=>{if(i<vids.length-1)next();});load();
                 {videos.length > 0 ? (
                   <div style={{ position: 'relative', maxWidth: `${maxWidth}px`, margin: '0 auto' }}>
                     <div style={{ 
+                      position: 'relative',
+                      width: '100%',
+                      paddingBottom: '56.25%',
                       background: '#000', 
                       borderRadius: `${borderRadius}px`, 
                       overflow: 'hidden', 
@@ -418,7 +421,15 @@ v.addEventListener('ended',()=>{if(i<vids.length-1)next();});load();
                       <video 
                         controls 
                         autoPlay={autoplay}
-                        style={{ width: '100%', display: 'block' }}
+                        muted
+                        style={{ 
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain'
+                        }}
                         src={videos.filter(v => !v.key.startsWith('thumbnails/') && !v.key.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/i))[0]?.url}
                       />
                     </div>
@@ -439,7 +450,8 @@ v.addEventListener('ended',()=>{if(i<vids.length-1)next();});load();
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: `${arrowSize * 0.5}px`,
-                          opacity: 0.7
+                          opacity: 0.7,
+                          zIndex: 10
                         }}>‹</div>
                         <div style={{
                           position: 'absolute',
@@ -456,7 +468,8 @@ v.addEventListener('ended',()=>{if(i<vids.length-1)next();});load();
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: `${arrowSize * 0.5}px`,
-                          opacity: 0.7
+                          opacity: 0.7,
+                          zIndex: 10
                         }}>›</div>
                       </>
                     )}
