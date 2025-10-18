@@ -52,6 +52,7 @@ export default function BucketManager() {
   const [arrowStyle, setArrowStyle] = useState('chevron'); // chevron, arrow, triangle, circle
   const [autoplay, setAutoplay] = useState(false);
   const [backgroundColor, setBackgroundColor] = useState('#000000');
+  const [playerAccentColor, setPlayerAccentColor] = useState('#3b82f6'); // Blue default
   const [arrowColor, setArrowColor] = useState('#ffffff');
   const [arrowBgColor, setArrowBgColor] = useState('rgba(0,0,0,0.5)');
   
@@ -253,9 +254,18 @@ export default function BucketManager() {
 
     // Generate clean embeddable HTML with customization
     const currentArrows = arrowIcons[arrowStyle as keyof typeof arrowIcons];
-    const htmlCode = `<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
+    const htmlCode = `<style>
+video::-webkit-media-controls-panel { background: ${backgroundColor}; }
+video::-webkit-media-controls-play-button:hover,
+video::-webkit-media-controls-mute-button:hover,
+video::-webkit-media-controls-fullscreen-button:hover { filter: brightness(1.2); }
+video::-webkit-media-controls-timeline { background: rgba(255,255,255,0.3); height: 4px; }
+video::-webkit-media-controls-current-time-display,
+video::-webkit-media-controls-time-remaining-display { color: ${playerAccentColor}; }
+</style>
+<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
     <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: ${backgroundColor}; border-radius: ${borderRadius}px; overflow: hidden;">
-        <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;"></video>
+        <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; accent-color: ${playerAccentColor};"></video>
     </div>
     ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.left}</button>
     <button onclick="vidNext()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.right}</button>` : ''}
@@ -512,29 +522,50 @@ vidLoad();
                 <div className="space-y-3 pt-4 border-t">
                   <Label className="text-sm font-semibold">Colors</Label>
                   
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Background</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Input
-                        type="color"
-                        value={backgroundColor}
-                        onChange={(e) => setBackgroundColor(e.target.value)}
-                        className="w-12 h-9 p-1 cursor-pointer"
-                      />
-                      <Input
-                        type="text"
-                        value={backgroundColor}
-                        onChange={(e) => setBackgroundColor(e.target.value)}
-                        className="flex-1 text-xs"
-                        placeholder="#000000"
-                      />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Background</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          type="color"
+                          value={backgroundColor}
+                          onChange={(e) => setBackgroundColor(e.target.value)}
+                          className="w-12 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          type="text"
+                          value={backgroundColor}
+                          onChange={(e) => setBackgroundColor(e.target.value)}
+                          className="flex-1 text-xs"
+                          placeholder="#000000"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Player Controls</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          type="color"
+                          value={playerAccentColor}
+                          onChange={(e) => setPlayerAccentColor(e.target.value)}
+                          className="w-12 h-9 p-1 cursor-pointer"
+                        />
+                        <Input
+                          type="text"
+                          value={playerAccentColor}
+                          onChange={(e) => setPlayerAccentColor(e.target.value)}
+                          className="flex-1 text-xs"
+                          placeholder="#3b82f6"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   {showArrows && (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label className="text-xs text-muted-foreground">Arrow Color</Label>
+                        <Label className="text-xs text-muted-foreground">Arrow Icon</Label>
                         <div className="flex gap-2 mt-1">
                           <Input
                             type="color"
@@ -553,7 +584,7 @@ vidLoad();
                       </div>
 
                       <div>
-                        <Label className="text-xs text-muted-foreground">Arrow BG</Label>
+                        <Label className="text-xs text-muted-foreground">Arrow Circle</Label>
                         <Input
                           type="text"
                           value={arrowBgColor}
@@ -604,7 +635,8 @@ vidLoad();
                           left: 0,
                           width: '100%',
                           height: '100%',
-                          objectFit: 'contain'
+                          objectFit: 'contain',
+                          accentColor: playerAccentColor
                         }}
                         src={videos.filter(v => !v.key.startsWith('thumbnails/') && !v.key.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/i))[0]?.url}
                       />
