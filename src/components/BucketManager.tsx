@@ -54,7 +54,6 @@ export default function BucketManager() {
   const [backgroundColor, setBackgroundColor] = useState('#000000');
   const [arrowColor, setArrowColor] = useState('#ffffff');
   const [arrowBgColor, setArrowBgColor] = useState('rgba(0,0,0,0.5)');
-  const [shadowColor, setShadowColor] = useState('rgba(0,0,0,0.15)');
   
   // Calculate aspect ratio percentage
   const aspectRatio = (aspectHeight / aspectWidth) * 100;
@@ -74,31 +73,26 @@ export default function BucketManager() {
         setBackgroundColor('#000000');
         setArrowColor('#ffffff');
         setArrowBgColor('rgba(0,0,0,0.7)');
-        setShadowColor('rgba(0,0,0,0.3)');
         break;
       case 'light':
         setBackgroundColor('#ffffff');
         setArrowColor('#000000');
         setArrowBgColor('rgba(255,255,255,0.9)');
-        setShadowColor('rgba(0,0,0,0.1)');
         break;
       case 'blue':
         setBackgroundColor('#1e40af');
         setArrowColor('#ffffff');
         setArrowBgColor('rgba(59,130,246,0.8)');
-        setShadowColor('rgba(30,64,175,0.3)');
         break;
       case 'purple':
         setBackgroundColor('#7c3aed');
         setArrowColor('#ffffff');
         setArrowBgColor('rgba(167,139,250,0.8)');
-        setShadowColor('rgba(124,58,237,0.3)');
         break;
       case 'gradient':
         setBackgroundColor('linear-gradient(135deg, #667eea 0%, #764ba2 100%)');
         setArrowColor('#ffffff');
         setArrowBgColor('rgba(0,0,0,0.5)');
-        setShadowColor('rgba(0,0,0,0.2)');
         break;
     }
   };
@@ -260,7 +254,7 @@ export default function BucketManager() {
     // Generate clean embeddable HTML with customization
     const currentArrows = arrowIcons[arrowStyle as keyof typeof arrowIcons];
     const htmlCode = `<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
-    <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: ${backgroundColor}; border-radius: ${borderRadius}px; overflow: hidden; box-shadow: 0 4px 20px ${shadowColor};">
+    <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: ${backgroundColor}; border-radius: ${borderRadius}px; overflow: hidden;">
         <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;"></video>
     </div>
     ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.left}</button>
@@ -518,34 +512,21 @@ vidLoad();
                 <div className="space-y-3 pt-4 border-t">
                   <Label className="text-sm font-semibold">Colors</Label>
                   
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Background</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Input
-                          type="color"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="w-12 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          type="text"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="flex-1 text-xs"
-                          placeholder="#000000"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Shadow</Label>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Background</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        type="color"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="w-12 h-9 p-1 cursor-pointer"
+                      />
                       <Input
                         type="text"
-                        value={shadowColor}
-                        onChange={(e) => setShadowColor(e.target.value)}
-                        className="mt-1 text-xs"
-                        placeholder="rgba(0,0,0,0.15)"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="flex-1 text-xs"
+                        placeholder="#000000"
                       />
                     </div>
                   </div>
@@ -611,8 +592,7 @@ vidLoad();
                       paddingBottom: `${aspectRatio.toFixed(2)}%`,
                       background: backgroundColor, 
                       borderRadius: `${borderRadius}px`, 
-                      overflow: 'hidden', 
-                      boxShadow: `0 4px 20px ${shadowColor}` 
+                      overflow: 'hidden'
                     }}>
                       <video 
                         controls 
