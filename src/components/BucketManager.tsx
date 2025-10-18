@@ -188,15 +188,10 @@ export default function BucketManager() {
   };
 
   const generateCodeSnippet = async () => {
-    console.log('Generating HTML for videos:', videos.length);
-    
     if (videos.length === 0) {
-      alert('No videos to generate code for. Please add some videos first.');
+      toast.error('No videos to generate code for. Please add some videos first.');
       return;
     }
-    
-    console.log('Starting HTML generation...');
-    alert('Generating HTML code...');
 
     // Filter out thumbnail files and only include actual videos
     const actualVideos = videos.filter(video => 
@@ -215,236 +210,152 @@ export default function BucketManager() {
       name: video.key
     }));
 
-    // Generate dynamic buttons based on actual video count
-    const buttonsHtml = videoData.map((video, index) => 
-      `<button class="btn" onclick="playVideo(${index})" title="${video.name}">Video ${index + 1}</button>`
-    ).join('\n            ');
-
+    //Generate clean embeddable HTML
     const htmlCode = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Player - ${actualVideos.length} Videos</title>
+    <title>Video Player</title>
     <style>
-        * { box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: transparent;
         }
-        .container { 
-            max-width: 900px; 
-            margin: 0 auto; 
-        }
-        .video-container { 
-            background: white; 
-            border-radius: 12px; 
-            overflow: hidden; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
-        }
-        video { 
-            width: 100%; 
-            height: auto; 
-            display: block; 
+        .video-player {
+            max-width: 800px;
+            margin: 0 auto;
             background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
-        .video-info { 
-            padding: 15px 20px; 
-            background: #f8f9fa; 
-            border-bottom: 1px solid #e9ecef;
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .controls {
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9));
+            padding: 16px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
-        .video-title {
-            font-weight: 600;
-            color: #333;
-            margin: 0;
-        }
-        .video-counter {
-            background: #007bff;
+        .control-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
             color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        .controls { 
-            padding: 20px; 
-            background: #fff;
-        }
-        .btn { 
-            padding: 10px 20px; 
-            margin: 5px; 
-            border: none; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            background: #007bff; 
-            color: white; 
-            font-weight: 500;
-            transition: all 0.3s ease;
-            font-size: 14px;
-        }
-        .btn:hover { 
-            background: #0056b3; 
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
-        }
-        .btn.active { 
-            background: #28a745; 
-            box-shadow: 0 4px 12px rgba(40,167,69,0.3);
-        }
-        .navigation {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .nav-btn {
-            padding: 12px 24px;
-            background: #6c757d;
-            color: white;
-            border: none;
+            padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            font-size: 14px;
+            transition: all 0.2s;
         }
-        .nav-btn:hover:not(:disabled) {
-            background: #5a6268;
-            transform: translateY(-2px);
+        .control-btn:hover {
+            background: rgba(255,255,255,0.2);
         }
-        .nav-btn:disabled {
-            background: #e9ecef;
-            color: #6c757d;
+        .control-btn:disabled {
+            opacity: 0.4;
             cursor: not-allowed;
         }
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 6px;
-            margin: 10px 0;
-            border: 1px solid #f5c6cb;
+        .video-list {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+        .video-btn {
+            background: #007bff;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .video-btn:hover {
+            background: #0056b3;
+        }
+        .video-btn.active {
+            background: #28a745;
+        }
+        .video-info {
+            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+            width: 100%;
+            margin-top: 8px;
         }
         @media (max-width: 768px) {
-            body { padding: 10px; }
-            .btn { padding: 8px 16px; font-size: 13px; }
-            .nav-btn { padding: 10px 20px; }
+            .controls { padding: 12px; }
+            .control-btn { padding: 6px 12px; font-size: 12px; }
+            .video-btn { padding: 5px 10px; font-size: 12px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="video-container">
-            <video id="videoPlayer" controls poster="${videoData[0]?.thumbnail || ''}">
-                <source src="${videoData[0]?.url || ''}" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
-            <div class="video-info">
-                <h3 class="video-title" id="videoTitle">${videoData[0]?.name || 'Video 1'}</h3>
-                <span class="video-counter" id="videoCounter">1 / ${videoData.length}</span>
-            </div>
-            <div class="controls">
-                <div class="navigation">
-                    <button class="nav-btn" id="prevBtn" onclick="previousVideo()">← Previous</button>
-                    <button class="nav-btn" id="nextBtn" onclick="nextVideo()">Next →</button>
-                </div>
-                <div style="margin-top: 15px; text-align: center;">
-                    ${buttonsHtml}
-                </div>
-            </div>
+    <div class="video-player">
+        <video id="player" controls></video>
+        <div class="controls">
+            <button class="control-btn" id="prevBtn" onclick="prev()">← Prev</button>
+            <button class="control-btn" id="nextBtn" onclick="next()">Next →</button>
+            <div class="video-list" id="videoList"></div>
+            <div class="video-info" id="info"></div>
         </div>
     </div>
-
     <script>
-        const videoData = ${JSON.stringify(videoData, null, 2)};
-        let currentVideoIndex = 0;
-        const videoElement = document.getElementById('videoPlayer');
-        const videoTitle = document.getElementById('videoTitle');
-        const videoCounter = document.getElementById('videoCounter');
+        const videos = ${JSON.stringify(videoData, null, 2)};
+        let current = 0;
+        const player = document.getElementById('player');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
+        const videoList = document.getElementById('videoList');
+        const info = document.getElementById('info');
         
-        function updateUI() {
-                // Update video source
-            const currentVideo = videoData[currentVideoIndex];
-                videoElement.src = currentVideo.url;
-                videoElement.poster = currentVideo.thumbnail || '';
-                
-            // Update video title and counter
-                videoTitle.textContent = currentVideo.name;
-            videoCounter.textContent = \`\${currentVideoIndex + 1} / \${videoData.length}\`;
-                
-                // Update button states
-                document.querySelectorAll('.btn').forEach((btn, i) => {
-                btn.classList.toggle('active', i === currentVideoIndex);
-                });
-            
-            // Update navigation buttons
-            prevBtn.disabled = currentVideoIndex === 0;
-            nextBtn.disabled = currentVideoIndex === videoData.length - 1;
-                
-                // Load the video
-                videoElement.load();
-        }
-        
-        function playVideo(index) {
-            if (index >= 0 && index < videoData.length) {
-                currentVideoIndex = index;
-                updateUI();
-            }
-        }
-        
-        function nextVideo() {
-            if (currentVideoIndex < videoData.length - 1) {
-                currentVideoIndex++;
-                updateUI();
-            }
-        }
-        
-        function previousVideo() {
-            if (currentVideoIndex > 0) {
-                currentVideoIndex--;
-                updateUI();
-            }
-        }
-        
-        // Keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowLeft') {
-                previousVideo();
-            } else if (e.key === 'ArrowRight') {
-                nextVideo();
-            }
+        // Create video buttons
+        videos.forEach((video, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'video-btn';
+            btn.textContent = index + 1;
+            btn.onclick = () => loadVideo(index);
+            videoList.appendChild(btn);
         });
         
-        // Initialize with first video
-        if (videoData.length > 0) {
+        function loadVideo(index) {
+            current = index;
+            player.src = videos[current].url;
+            if (videos[current].thumbnail) player.poster = videos[current].thumbnail;
+            player.load();
+            player.play();
             updateUI();
         }
         
-        // Handle video errors
-        videoElement.addEventListener('error', function(e) {
-            console.error('Video load error:', e);
-            videoTitle.textContent = 'Error loading video';
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            errorDiv.textContent = 'Failed to load video. Please check the URL or try another video.';
-            document.querySelector('.controls').insertBefore(errorDiv, document.querySelector('.navigation'));
+        function updateUI() {
+            document.querySelectorAll('.video-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === current);
+            });
+            prevBtn.disabled = current === 0;
+            nextBtn.disabled = current === videos.length - 1;
+            info.textContent = \`\${current + 1} / \${videos.length} - \${videos[current].name}\`;
+        }
+        
+        function prev() { if (current > 0) loadVideo(current - 1); }
+        function next() { if (current < videos.length - 1) loadVideo(current + 1); }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') prev();
+            if (e.key === 'ArrowRight') next();
         });
         
-        // Auto-hide error messages after 5 seconds
-        setInterval(() => {
-            const errorMsg = document.querySelector('.error-message');
-            if (errorMsg) {
-                errorMsg.remove();
-            }
-        }, 5000);
+        // Auto-play next video
+        player.addEventListener('ended', () => { if (current < videos.length - 1) next(); });
+        
+        // Initialize
+        loadVideo(0);
     </script>
 </body>
 </html>`;
