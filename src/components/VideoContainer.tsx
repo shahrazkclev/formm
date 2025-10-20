@@ -315,7 +315,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 400);
+    }, 250);
   }, [isNavigating, currentIndex, urls.length, url, isYouTube]);
 
   const goToPrevious = useCallback(() => {
@@ -340,7 +340,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 400);
+    }, 250);
   }, [isNavigating, currentIndex, url, isYouTube]);
 
   const skipBackward = useCallback(() => {
