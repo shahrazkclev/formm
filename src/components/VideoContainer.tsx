@@ -160,9 +160,11 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setCurrentTime(0);
     setDuration(0);
     
-    // Don't show loading during navigation to prevent black screen
-    if (!isNavigating) {
+    // Only show loading for initial load, never during navigation
+    if (currentIndex === 0 && !isNavigating) {
       setIsLoading(true);
+    } else {
+      setIsLoading(false); // Ensure no loading state during navigation
     }
     
     setHasError(false);
@@ -171,7 +173,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     // Clear navigation state after animation completes
     const timer = setTimeout(() => {
       setIsNavigating(false);
-    }, 300); // Match animation duration
+    }, 200); // Match animation duration
     
     if (playerRef.current && isYouTube(url)) {
       playerRef.current.destroy();
@@ -323,7 +325,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 300); // Match animation duration
+    }, 200); // Match animation duration
   }, [isNavigating, currentIndex, urls.length, url, isYouTube]);
 
   const goToPrevious = useCallback(() => {
@@ -348,7 +350,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 300); // Match animation duration
+    }, 200); // Match animation duration
   }, [isNavigating, currentIndex, url, isYouTube]);
 
   const skipBackward = useCallback(() => {
@@ -516,9 +518,9 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
               onPlay={handlePlay}
               onPause={handlePause}
               onVolumeChange={handleVolumeChangeEvent}
-              className="w-full h-full object-contain bg-black transition-opacity duration-300"
+              className="w-full h-full object-contain bg-black"
               style={{
-                opacity: isLoading ? 0.3 : 1,
+                opacity: 1, // Always fully visible during navigation
               }}
               title={title}
               playsInline
