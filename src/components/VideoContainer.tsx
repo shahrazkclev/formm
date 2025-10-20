@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { Play, Pause, Volume2, VolumeX, Maximize, AlertCircle, ChevronLeft, ChevronRight, SkipBack, SkipForward, RotateCcw, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
@@ -29,13 +29,13 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const intervalRef = useRef<number | null>(null);
   const hideControlsTimeout = useRef<number | null>(null);
 
-  // Detect if URL is a YouTube video
-  const isYouTube = (url: string) => {
+  // Memoize YouTube detection to prevent recalculation
+  const isYouTube = useCallback((url: string) => {
     return url.includes('youtube.com') || url.includes('youtu.be');
-  };
+  }, []);
 
-  // Convert YouTube URL to embed format
-  const getYouTubeEmbedUrl = (url: string) => {
+  // Memoize YouTube URL conversion
+  const getYouTubeEmbedUrl = useCallback((url: string) => {
     let videoId = '';
     
     if (url.includes('youtube.com/watch?v=')) {
@@ -47,13 +47,13 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     
     return `https://www.youtube.com/embed/${videoId}`;
-  };
+  }, []);
 
-  const handleLoad = () => {
+  const handleLoad = useCallback(() => {
     setIsLoading(false);
-  };
+  }, []);
 
-  const handleError = (event?: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+  const handleError = useCallback((event?: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     setIsLoading(false);
     setHasError(true);
     
@@ -100,7 +100,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
         "Failed to load video. This is likely a CORS issue. Configure CORS headers on your server." : 
         "Failed to load video. Please check the URL.");
     }
-  };
+  }, [url]);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -190,36 +190,37 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     return '';
   };
 
-  const startProgressTracking = () => {
+  const startProgressTracking = useCallback(() => {
     if (intervalRef.current) return;
+    // Reduced frequency to 250ms for better performance
     intervalRef.current = window.setInterval(() => {
       if (playerRef.current) {
         setCurrentTime(playerRef.current.getCurrentTime());
       }
-    }, 100);
-  };
+    }, 250);
+  }, []);
 
-  const stopProgressTracking = () => {
+  const stopProgressTracking = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     return () => stopProgressTracking();
-  }, []);
+  }, [stopProgressTracking]);
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     if (!playerRef.current) return;
     if (isPlaying) {
       playerRef.current.pauseVideo();
     } else {
       playerRef.current.playVideo();
     }
-  };
+  }, [isPlaying]);
 
-  const toggleMute = () => {
+  const toggleMute = useCallback(() => {
     if (!playerRef.current) return;
     if (isMuted) {
       playerRef.current.unMute();
@@ -228,9 +229,9 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
       playerRef.current.mute();
       setIsMuted(true);
     }
-  };
+  }, [isMuted]);
 
-  const handleVolumeChange = (value: number[]) => {
+  const handleVolumeChange = useCallback((value: number[]) => {
     if (!playerRef.current) return;
     const newVolume = value[0];
     setVolume(newVolume);
@@ -240,31 +241,31 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     } else if (isMuted) {
       setIsMuted(false);
     }
-  };
+  }, [isMuted]);
 
-  const handleSeek = (value: number[]) => {
+  const handleSeek = useCallback((value: number[]) => {
     if (!playerRef.current) return;
     const newTime = value[0];
     playerRef.current.seekTo(newTime, true);
     setCurrentTime(newTime);
-  };
+  }, []);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
       containerRef.current.requestFullscreen();
     } else {
       document.exitFullscreen();
     }
-  };
+  }, []);
 
-  const formatTime = (seconds: number) => {
+  const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     if (currentIndex < urls.length - 1) {
       // Stop current video immediately for smoother transition
       if (playerRef.current && !isYouTube(url)) {
@@ -272,9 +273,9 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
       }
       setCurrentIndex(currentIndex + 1);
     }
-  };
+  }, [currentIndex, urls.length, url, isYouTube]);
 
-  const goToPrevious = () => {
+  const goToPrevious = useCallback(() => {
     if (currentIndex > 0) {
       // Stop current video immediately for smoother transition
       if (playerRef.current && !isYouTube(url)) {
@@ -282,35 +283,35 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
       }
       setCurrentIndex(currentIndex - 1);
     }
-  };
+  }, [currentIndex, url, isYouTube]);
 
-  const skipBackward = () => {
+  const skipBackward = useCallback(() => {
     if (!playerRef.current) return;
     const newTime = Math.max(0, currentTime - 10);
     playerRef.current.seekTo(newTime, true);
     setCurrentTime(newTime);
-  };
+  }, [currentTime]);
 
-  const skipForward = () => {
+  const skipForward = useCallback(() => {
     if (!playerRef.current) return;
     const newTime = Math.min(duration, currentTime + 10);
     playerRef.current.seekTo(newTime, true);
     setCurrentTime(newTime);
-  };
+  }, [duration, currentTime]);
 
-  const handlePlaybackRateChange = (rate: number) => {
+  const handlePlaybackRateChange = useCallback((rate: number) => {
     if (!playerRef.current) return;
     setPlaybackRate(rate);
     playerRef.current.setPlaybackRate(rate);
-  };
+  }, []);
 
-  const resetVideo = () => {
+  const resetVideo = useCallback(() => {
     if (!playerRef.current) return;
     playerRef.current.seekTo(0, true);
     setCurrentTime(0);
-  };
+  }, []);
 
-  const handleMouseMove = () => {
+  const handleMouseMove = useCallback(() => {
     setShowControls(true);
     if (hideControlsTimeout.current) {
       clearTimeout(hideControlsTimeout.current);
@@ -318,16 +319,32 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     hideControlsTimeout.current = window.setTimeout(() => {
       setShowControls(false);
     }, 3000);
-  };
+  }, []);
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     if (hideControlsTimeout.current) {
       clearTimeout(hideControlsTimeout.current);
     }
     hideControlsTimeout.current = window.setTimeout(() => {
       setShowControls(false);
     }, 1000);
-  };
+  }, []);
+
+  // Optimized video event handlers
+  const handleLoadStart = useCallback(() => setIsLoading(true), []);
+  const handleCanPlay = useCallback(() => setIsLoading(false), []);
+  const handleTimeUpdate = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
+    setCurrentTime(e.currentTarget.currentTime);
+  }, []);
+  const handleLoadedMetadata = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
+    setDuration(e.currentTarget.duration);
+  }, []);
+  const handlePlay = useCallback(() => setIsPlaying(true), []);
+  const handlePause = useCallback(() => setIsPlaying(false), []);
+  const handleVolumeChangeEvent = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
+    setVolume(e.currentTarget.volume * 100);
+    setIsMuted(e.currentTarget.muted);
+  }, []);
 
   if (!urls.length || !url) {
     return (
@@ -513,16 +530,13 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
               preload="auto"
               onLoadedData={handleLoad}
               onError={handleError}
-              onLoadStart={() => setIsLoading(true)}
-              onCanPlay={() => setIsLoading(false)}
-              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onVolumeChange={(e) => {
-                setVolume(e.currentTarget.volume * 100);
-                setIsMuted(e.currentTarget.muted);
-              }}
+              onLoadStart={handleLoadStart}
+              onCanPlay={handleCanPlay}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onVolumeChange={handleVolumeChangeEvent}
               className="w-full h-full object-contain bg-black"
               title={title}
               playsInline
@@ -716,4 +730,5 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   );
 };
 
-export default VideoContainer;
+// Memoize component to prevent unnecessary re-renders
+export default memo(VideoContainer);
