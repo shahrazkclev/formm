@@ -163,13 +163,8 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setHasError(false);
     setErrorMessage("");
     
-    // Clear navigation flag after brief delay (50ms for instant feel)
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current);
-    }
-    navigationTimeoutRef.current = window.setTimeout(() => {
-      setIsNavigating(false);
-    }, 50);
+    // Instant navigation feedback - no delay
+    setIsNavigating(false);
     
     if (playerRef.current && isYouTube(url)) {
       playerRef.current.destroy();
@@ -301,55 +296,51 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const goToNext = useCallback(() => {
     if (isNavigating || currentIndex >= urls.length - 1) return;
     
-    // Set navigating and slide direction IMMEDIATELY for instant visual feedback
+    // Set navigating and slide direction INSTANTLY
     setIsNavigating(true);
     setSlideDirection('left');
     
-    // Stop current video immediately
+    // Stop current video
     if (playerRef.current && !isYouTube(url)) {
       playerRef.current.pause();
       playerRef.current.currentTime = 0;
     }
     
-    // Change index immediately - no delays
-    requestAnimationFrame(() => {
-      setCurrentIndex(prev => prev + 1);
-    });
+    // Change index immediately with no delay for instant response
+    setCurrentIndex(prev => prev + 1);
     
-    // Clear slide animation after transition
+    // Clear slide animation after CSS transition completes
     if (animationTimeoutRef.current) {
       clearTimeout(animationTimeoutRef.current);
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 300);
+    }, 400);
   }, [isNavigating, currentIndex, urls.length, url, isYouTube]);
 
   const goToPrevious = useCallback(() => {
     if (isNavigating || currentIndex <= 0) return;
     
-    // Set navigating and slide direction IMMEDIATELY for instant visual feedback
+    // Set navigating and slide direction INSTANTLY
     setIsNavigating(true);
     setSlideDirection('right');
     
-    // Stop current video immediately
+    // Stop current video
     if (playerRef.current && !isYouTube(url)) {
       playerRef.current.pause();
       playerRef.current.currentTime = 0;
     }
     
-    // Change index immediately - no delays
-    requestAnimationFrame(() => {
-      setCurrentIndex(prev => prev - 1);
-    });
+    // Change index immediately with no delay for instant response
+    setCurrentIndex(prev => prev - 1);
     
-    // Clear slide animation after transition
+    // Clear slide animation after CSS transition completes
     if (animationTimeoutRef.current) {
       clearTimeout(animationTimeoutRef.current);
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 300);
+    }, 400);
   }, [isNavigating, currentIndex, url, isYouTube]);
 
   const skipBackward = useCallback(() => {
@@ -435,11 +426,13 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
 
       <div 
         ref={containerRef}
-        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group transition-transform duration-300 ease-out ${className}`}
+        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className} ${
+          slideDirection === 'left' ? 'animate-slide-left' : 
+          slideDirection === 'right' ? 'animate-slide-right' : 
+          'animate-fade-in'
+        }`}
         style={{ 
           boxShadow: 'var(--video-shadow)',
-          transform: slideDirection === 'left' ? 'translateX(-20px)' : slideDirection === 'right' ? 'translateX(20px)' : 'translateX(0)',
-          opacity: slideDirection ? 0.7 : 1,
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
