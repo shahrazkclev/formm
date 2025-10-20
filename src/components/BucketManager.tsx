@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -21,7 +21,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import VideoContainer from './VideoContainer';
+
+// Lazy load VideoContainer since it's only used in player tab
+const VideoContainer = lazy(() => import('./VideoContainer'));
 
 interface VideoFile {
   key: string;
@@ -730,6 +732,7 @@ vidLoad();
                     }}>
                       <video 
                         controls
+                        preload="none"
                         style={{ 
                           position: 'absolute',
                           top: 0,
@@ -869,6 +872,7 @@ vidLoad();
                         src={video.thumbnail} 
                         alt={video.key}
                         loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
@@ -1036,11 +1040,20 @@ vidLoad();
                   <p className="text-sm text-muted-foreground mb-4">
                     Video URLs: {videos.map(video => video.url).join(', ')}
                   </p>
-                  <VideoContainer 
-                    urls={videos.map(video => video.url)}
-                    title="Video Player"
-                    className="max-w-4xl mx-auto"
-                  />
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-center space-y-4">
+                        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+                        <p className="text-muted-foreground">Loading player...</p>
+                      </div>
+                    </div>
+                  }>
+                    <VideoContainer 
+                      urls={videos.map(video => video.url)}
+                      title="Video Player"
+                      className="max-w-4xl mx-auto"
+                    />
+                  </Suspense>
                 </div>
               </CardContent>
             </Card>
@@ -1110,6 +1123,7 @@ vidLoad();
                   controls 
                   className="w-full rounded-lg"
                   poster={selectedVideo.thumbnail}
+                  preload="metadata"
                 >
                   <source src={selectedVideo.url} type="video/mp4" />
                   <source src={selectedVideo.url} type="video/webm" />
