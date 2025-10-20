@@ -160,7 +160,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setCurrentTime(0);
     setDuration(0);
     
-    // Only show loading for initial load, not during navigation
+    // Don't show loading during navigation to prevent black screen
     if (!isNavigating) {
       setIsLoading(true);
     }
@@ -168,10 +168,10 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setHasError(false);
     setErrorMessage("");
     
-    // Clear navigation state after video loads
+    // Clear navigation state after animation completes
     const timer = setTimeout(() => {
       setIsNavigating(false);
-    }, 100);
+    }, 300); // Match animation duration
     
     if (playerRef.current && isYouTube(url)) {
       playerRef.current.destroy();
@@ -323,7 +323,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 250);
+    }, 300); // Match animation duration
   }, [isNavigating, currentIndex, urls.length, url, isYouTube]);
 
   const goToPrevious = useCallback(() => {
@@ -348,7 +348,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 250);
+    }, 300); // Match animation duration
   }, [isNavigating, currentIndex, url, isYouTube]);
 
   const skipBackward = useCallback(() => {
@@ -434,14 +434,18 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
 
       <div 
         ref={containerRef}
-        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className}`}
+        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className} ${
+          slideDirection === 'left' ? 'animate-slide-left' : 
+          slideDirection === 'right' ? 'animate-slide-right' : 
+          'animate-fade-in'
+        }`}
         style={{ 
           boxShadow: 'var(--video-shadow)',
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {isLoading && (
+        {isLoading && !isNavigating && (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-secondary/90 to-secondary/70 backdrop-blur-sm z-10">
             <div className="relative">
               {/* Skeleton loader with pulsing animation */}
@@ -482,7 +486,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
         )}
 
         {isYouTube(url) ? (
-          <div className={slideDirection === 'left' ? 'animate-slide-left' : slideDirection === 'right' ? 'animate-slide-right' : 'animate-fade-in'}>
+          <div>
             <div id="youtube-player" className="w-full h-full pointer-events-none" />
             
             {/* Clickable overlay to capture clicks */}
@@ -497,7 +501,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
             </div>
           </div>
         ) : (
-          <div className={slideDirection === 'left' ? 'animate-slide-left' : slideDirection === 'right' ? 'animate-slide-right' : 'animate-fade-in'}>
+          <div>
             <video
               key={url}
               src={url}
