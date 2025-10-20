@@ -25,9 +25,9 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const [showControls, setShowControls] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  const [preloadedVideos, setPreloadedVideos] = useState<Set<number>>(new Set());
   const playerRef = useRef<any>(null);
-  const preloadRef = useRef<HTMLVideoElement | null>(null);
-  const preloadRef2 = useRef<HTMLVideoElement | null>(null);
+  const preloadRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<number | null>(null);
   const hideControlsTimeout = useRef<number | null>(null);
@@ -162,7 +162,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     
     // Only show loading for initial load, never during navigation
     if (currentIndex === 0 && !isNavigating) {
-      setIsLoading(true);
+    setIsLoading(true);
     } else {
       setIsLoading(false); // Ensure no loading state during navigation
     }
@@ -191,31 +191,60 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     };
   }, [currentIndex, url, isYouTube, isNavigating]);
 
-  // Preload next 2 videos for smoother navigation
+  // Aggressive preloading strategy - preload all videos with metadata
   useEffect(() => {
-    const preloadVideos = () => {
-      const nextIndex = currentIndex + 1;
-      const nextNextIndex = currentIndex + 2;
+    const preloadAllVideos = async () => {
+      const newPreloadedVideos = new Set<number>();
       
-      // Preload next video
-      if (nextIndex < urls.length && !isYouTube(urls[nextIndex])) {
-        if (preloadRef.current) {
-          preloadRef.current.src = urls[nextIndex];
-          preloadRef.current.load();
+      for (let i = 0; i < urls.length; i++) {
+        if (isYouTube(urls[i])) {
+          newPreloadedVideos.add(i);
+          continue;
+        }
+        
+        try {
+          // Create video element for preloading
+          const video = document.createElement('video');
+          video.crossOrigin = '';
+          video.preload = 'metadata';
+          video.src = urls[i];
+          
+          // Store reference
+          preloadRefs.current.set(i, video);
+          
+          // Wait for metadata to load
+          await new Promise((resolve, reject) => {
+            video.addEventListener('loadedmetadata', resolve);
+            video.addEventListener('error', reject);
+            video.load();
+            
+            // Timeout after 5 seconds
+            setTimeout(() => resolve(video), 5000);
+          });
+          
+          newPreloadedVideos.add(i);
+          console.log(`Preloaded video ${i + 1}/${urls.length}`);
+        } catch (error) {
+          console.warn(`Failed to preload video ${i + 1}:`, error);
         }
       }
       
-      // Preload video after next
-      if (nextNextIndex < urls.length && !isYouTube(urls[nextNextIndex])) {
-        if (preloadRef2.current) {
-          preloadRef2.current.src = urls[nextNextIndex];
-          preloadRef2.current.load();
-        }
-      }
+      setPreloadedVideos(newPreloadedVideos);
     };
     
-    preloadVideos();
-  }, [currentIndex, urls, isYouTube]);
+    if (urls.length > 0) {
+      preloadAllVideos();
+    }
+    
+    // Cleanup function
+    return () => {
+      preloadRefs.current.forEach((video) => {
+        video.src = '';
+        video.load();
+      });
+      preloadRefs.current.clear();
+    };
+  }, [urls, isYouTube]);
 
   const getYouTubeVideoId = (url: string) => {
     if (url.includes('youtube.com/watch?v=')) {
@@ -306,6 +335,14 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const goToNext = useCallback(() => {
     if (isNavigating || currentIndex >= urls.length - 1) return;
     
+    const nextIndex = currentIndex + 1;
+    
+    // Check if next video is preloaded
+    if (!preloadedVideos.has(nextIndex) && !isYouTube(urls[nextIndex])) {
+      console.log('Next video not preloaded yet, waiting...');
+      return;
+    }
+    
     // Set navigating and slide direction INSTANTLY
     setIsNavigating(true);
     setSlideDirection('left');
@@ -317,7 +354,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     
     // Change index immediately with no delay for instant response
-    setCurrentIndex(prev => prev + 1);
+    setCurrentIndex(nextIndex);
     
     // Clear slide animation after CSS transition completes
     if (animationTimeoutRef.current) {
@@ -326,10 +363,18 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
     }, 200); // Match animation duration
-  }, [isNavigating, currentIndex, urls.length, url, isYouTube]);
+  }, [isNavigating, currentIndex, urls.length, url, isYouTube, preloadedVideos, urls]);
 
   const goToPrevious = useCallback(() => {
     if (isNavigating || currentIndex <= 0) return;
+    
+    const prevIndex = currentIndex - 1;
+    
+    // Check if previous video is preloaded
+    if (!preloadedVideos.has(prevIndex) && !isYouTube(urls[prevIndex])) {
+      console.log('Previous video not preloaded yet, waiting...');
+      return;
+    }
     
     // Set navigating and slide direction INSTANTLY
     setIsNavigating(true);
@@ -342,7 +387,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     
     // Change index immediately with no delay for instant response
-    setCurrentIndex(prev => prev - 1);
+    setCurrentIndex(prevIndex);
     
     // Clear slide animation after CSS transition completes
     if (animationTimeoutRef.current) {
@@ -351,7 +396,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
     }, 200); // Match animation duration
-  }, [isNavigating, currentIndex, url, isYouTube]);
+  }, [isNavigating, currentIndex, url, isYouTube, preloadedVideos, urls]);
 
   const skipBackward = useCallback(() => {
     if (!playerRef.current) return;
@@ -427,10 +472,15 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
 
   return (
     <div className="relative w-full">
-      {/* Video counter */}
+      {/* Video counter and preload status */}
       {urls.length > 1 && (
         <div className="absolute top-4 right-4 z-30 bg-black/70 backdrop-blur-sm px-3 py-1 rounded-full text-sm text-white/90 border border-white/10">
           {currentIndex + 1} / {urls.length}
+          {preloadedVideos.size < urls.length && (
+            <span className="ml-2 text-xs text-yellow-400">
+              ({preloadedVideos.size}/{urls.length} ready)
+            </span>
+          )}
         </div>
       )}
 
@@ -460,6 +510,12 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
               <p className="text-center mt-4 text-sm text-muted-foreground animate-pulse">
                 Loading video...
               </p>
+              {/* Preload progress */}
+              {preloadedVideos.size < urls.length && (
+                <p className="text-center mt-2 text-xs text-yellow-400">
+                  Preloading videos... ({preloadedVideos.size}/{urls.length})
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -500,8 +556,8 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
             {/* Custom Controls Overlay */}
             <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-20 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
 ...
+              </div>
             </div>
-          </div>
         ) : (
           <div>
             <video
@@ -534,19 +590,6 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
               Your browser does not support the video tag.
             </video>
             
-            {/* Hidden preload videos for next videos */}
-            <video
-              ref={preloadRef}
-              preload="auto"
-              className="hidden"
-              style={{ display: 'none' }}
-            />
-            <video
-              ref={preloadRef2}
-              preload="auto"
-              className="hidden"
-              style={{ display: 'none' }}
-            />
             
             {/* Custom Controls Overlay for regular video */}
             <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-20 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
