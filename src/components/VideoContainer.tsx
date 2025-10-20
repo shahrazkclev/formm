@@ -24,6 +24,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const playerRef = useRef<any>(null);
   const preloadRef = useRef<HTMLVideoElement | null>(null);
   const preloadRef2 = useRef<HTMLVideoElement | null>(null);
@@ -31,6 +32,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const intervalRef = useRef<number | null>(null);
   const hideControlsTimeout = useRef<number | null>(null);
   const navigationTimeoutRef = useRef<number | null>(null);
+  const animationTimeoutRef = useRef<number | null>(null);
 
   // Memoize YouTube detection to prevent recalculation
   const isYouTube = useCallback((url: string) => {
@@ -161,13 +163,13 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setHasError(false);
     setErrorMessage("");
     
-    // Clear navigation flag after brief delay
+    // Clear navigation flag after brief delay (50ms for instant feel)
     if (navigationTimeoutRef.current) {
       clearTimeout(navigationTimeoutRef.current);
     }
     navigationTimeoutRef.current = window.setTimeout(() => {
       setIsNavigating(false);
-    }, 100);
+    }, 50);
     
     if (playerRef.current && isYouTube(url)) {
       playerRef.current.destroy();
@@ -177,6 +179,9 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     return () => {
       if (navigationTimeoutRef.current) {
         clearTimeout(navigationTimeoutRef.current);
+      }
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
       }
     };
   }, [currentIndex, url, isYouTube]);
@@ -296,33 +301,55 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const goToNext = useCallback(() => {
     if (isNavigating || currentIndex >= urls.length - 1) return;
     
-    // Set navigating flag immediately to prevent double-clicks
+    // Set navigating and slide direction IMMEDIATELY for instant visual feedback
     setIsNavigating(true);
+    setSlideDirection('left');
     
-    // Stop current video immediately for smoother transition
+    // Stop current video immediately
     if (playerRef.current && !isYouTube(url)) {
       playerRef.current.pause();
       playerRef.current.currentTime = 0;
     }
     
-    // Immediately change index - don't wait for anything
-    setCurrentIndex(prev => prev + 1);
+    // Change index immediately - no delays
+    requestAnimationFrame(() => {
+      setCurrentIndex(prev => prev + 1);
+    });
+    
+    // Clear slide animation after transition
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+    animationTimeoutRef.current = window.setTimeout(() => {
+      setSlideDirection(null);
+    }, 300);
   }, [isNavigating, currentIndex, urls.length, url, isYouTube]);
 
   const goToPrevious = useCallback(() => {
     if (isNavigating || currentIndex <= 0) return;
     
-    // Set navigating flag immediately to prevent double-clicks
+    // Set navigating and slide direction IMMEDIATELY for instant visual feedback
     setIsNavigating(true);
+    setSlideDirection('right');
     
-    // Stop current video immediately for smoother transition
+    // Stop current video immediately
     if (playerRef.current && !isYouTube(url)) {
       playerRef.current.pause();
       playerRef.current.currentTime = 0;
     }
     
-    // Immediately change index - don't wait for anything
-    setCurrentIndex(prev => prev - 1);
+    // Change index immediately - no delays
+    requestAnimationFrame(() => {
+      setCurrentIndex(prev => prev - 1);
+    });
+    
+    // Clear slide animation after transition
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+    animationTimeoutRef.current = window.setTimeout(() => {
+      setSlideDirection(null);
+    }, 300);
   }, [isNavigating, currentIndex, url, isYouTube]);
 
   const skipBackward = useCallback(() => {
@@ -408,8 +435,12 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
 
       <div 
         ref={containerRef}
-        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className}`}
-        style={{ boxShadow: 'var(--video-shadow)' }}
+        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group transition-transform duration-300 ease-out ${className}`}
+        style={{ 
+          boxShadow: 'var(--video-shadow)',
+          transform: slideDirection === 'left' ? 'translateX(-20px)' : slideDirection === 'right' ? 'translateX(20px)' : 'translateX(0)',
+          opacity: slideDirection ? 0.7 : 1,
+        }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
@@ -588,7 +619,10 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
               onPlay={handlePlay}
               onPause={handlePause}
               onVolumeChange={handleVolumeChangeEvent}
-              className="w-full h-full object-contain bg-black"
+              className="w-full h-full object-contain bg-black transition-opacity duration-300"
+              style={{
+                opacity: isLoading ? 0.3 : 1,
+              }}
               title={title}
               playsInline
               controls={false}
@@ -766,18 +800,26 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
           <Button
             variant="ghost"
             size="icon"
-            onClick={goToPrevious}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              goToPrevious();
+            }}
             disabled={currentIndex === 0 || isNavigating}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 bg-black/70 backdrop-blur-sm hover:bg-black/90 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 bg-black/70 backdrop-blur-sm hover:bg-black/90 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all active:scale-95"
           >
             <ChevronLeft className={`h-6 w-6 ${isNavigating ? 'animate-pulse' : ''}`} />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            onClick={goToNext}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              goToNext();
+            }}
             disabled={currentIndex === urls.length - 1 || isNavigating}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 bg-black/70 backdrop-blur-sm hover:bg-black/90 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 bg-black/70 backdrop-blur-sm hover:bg-black/90 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all active:scale-95"
           >
             <ChevronRight className={`h-6 w-6 ${isNavigating ? 'animate-pulse' : ''}`} />
           </Button>
