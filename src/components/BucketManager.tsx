@@ -69,7 +69,6 @@ export default function BucketManager() {
   const [showArrows, setShowArrows] = useState(true);
   const [arrowSize, setArrowSize] = useState(40);
   const [arrowStyle, setArrowStyle] = useState('chevron'); // chevron, arrow, triangle, circle
-  const [autoplay, setAutoplay] = useState(false);
   const [backgroundColor, setBackgroundColor] = useState('#000000');
   const [playerAccentColor, setPlayerAccentColor] = useState('#3b82f6'); // Blue default
   const [arrowColor, setArrowColor] = useState('#ffffff');
@@ -378,17 +377,16 @@ video::-webkit-media-controls-time-remaining-display { color: ${playerAccentColo
 </style>
 <div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
     <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: ${backgroundColor}; border-radius: ${borderRadius}px; overflow: hidden;">
-        <video id="vp" controls ${autoplay ? 'autoplay' : ''} style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; accent-color: ${playerAccentColor};"></video>
+        <video id="vp" controls style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; accent-color: ${playerAccentColor};"></video>
     </div>
     ${showArrows ? `<button onclick="vidPrev()" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.left}</button>
     <button onclick="vidNext()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.right}</button>` : ''}
 </div>
 <script>
 const vids=${JSON.stringify(videoData)};let i=0;const v=document.getElementById('vp');
-function vidLoad(){v.src=vids[i].url;if(vids[i].thumbnail)v.poster=vids[i].thumbnail;v.load();v.play();}
+function vidLoad(){v.src=vids[i].url;if(vids[i].thumbnail)v.poster=vids[i].thumbnail;v.load();}
 function vidPrev(){if(i>0){i--;vidLoad();}}
 function vidNext(){if(i<vids.length-1){i++;vidLoad();}}
-v.addEventListener('ended',()=>{if(i<vids.length-1)vidNext();});
 vidLoad();
 </script>`;
 
@@ -624,14 +622,6 @@ vidLoad();
                   </>
                 )}
 
-                <div className="flex items-center justify-between">
-                  <Label>Autoplay</Label>
-                  <Switch
-                    checked={autoplay}
-                    onCheckedChange={setAutoplay}
-                  />
-                </div>
-
                 <div className="space-y-3 pt-4 border-t">
                   <Label className="text-sm font-semibold">Colors</Label>
                   
@@ -739,9 +729,7 @@ vidLoad();
                       overflow: 'hidden'
                     }}>
                       <video 
-                        controls 
-                        autoPlay={autoplay}
-                        muted
+                        controls
                         style={{ 
                           position: 'absolute',
                           top: 0,
@@ -880,6 +868,7 @@ vidLoad();
                       <img 
                         src={video.thumbnail} 
                         alt={video.key}
+                        loading="lazy"
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
