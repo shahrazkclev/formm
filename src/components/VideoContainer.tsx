@@ -24,6 +24,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const playerRef = useRef<any>(null);
+  const preloadRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<number | null>(null);
   const hideControlsTimeout = useRef<number | null>(null);
@@ -153,15 +154,30 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    setIsLoading(true);
+    // Don't show loading immediately to reduce flicker
+    const loadingTimer = setTimeout(() => setIsLoading(true), 100);
     setHasError(false);
     setErrorMessage("");
     
-    if (playerRef.current) {
+    if (playerRef.current && isYouTube(url)) {
       playerRef.current.destroy();
       playerRef.current = null;
     }
-  }, [currentIndex]);
+    
+    return () => clearTimeout(loadingTimer);
+  }, [currentIndex, url]);
+
+  // Preload next video for smoother navigation
+  useEffect(() => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < urls.length && !isYouTube(urls[nextIndex])) {
+      // Preload next video
+      if (preloadRef.current) {
+        preloadRef.current.src = urls[nextIndex];
+        preloadRef.current.load();
+      }
+    }
+  }, [currentIndex, urls]);
 
   const getYouTubeVideoId = (url: string) => {
     if (url.includes('youtube.com/watch?v=')) {
@@ -250,12 +266,20 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
 
   const goToNext = () => {
     if (currentIndex < urls.length - 1) {
+      // Stop current video immediately for smoother transition
+      if (playerRef.current && !isYouTube(url)) {
+        playerRef.current.pause();
+      }
       setCurrentIndex(currentIndex + 1);
     }
   };
 
   const goToPrevious = () => {
     if (currentIndex > 0) {
+      // Stop current video immediately for smoother transition
+      if (playerRef.current && !isYouTube(url)) {
+        playerRef.current.pause();
+      }
       setCurrentIndex(currentIndex - 1);
     }
   };
@@ -486,7 +510,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
               key={url}
               src={url}
               crossOrigin=""
-              preload="metadata"
+              preload="auto"
               onLoadedData={handleLoad}
               onError={handleError}
               onLoadStart={() => setIsLoading(true)}
@@ -511,6 +535,14 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
             >
               Your browser does not support the video tag.
             </video>
+            
+            {/* Hidden preload video for next video */}
+            <video
+              ref={preloadRef}
+              preload="auto"
+              className="hidden"
+              style={{ display: 'none' }}
+            />
             
             {/* Custom Controls Overlay for regular video */}
             <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-20 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
