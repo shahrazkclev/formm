@@ -23,11 +23,14 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showControls, setShowControls] = useState(true);
+  const [isNavigating, setIsNavigating] = useState(false);
   const playerRef = useRef<any>(null);
   const preloadRef = useRef<HTMLVideoElement | null>(null);
+  const preloadRef2 = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<number | null>(null);
   const hideControlsTimeout = useRef<number | null>(null);
+  const navigationTimeoutRef = useRef<number | null>(null);
 
   // Memoize YouTube detection to prevent recalculation
   const isYouTube = useCallback((url: string) => {
@@ -154,30 +157,55 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    // Don't show loading immediately to reduce flicker
-    const loadingTimer = setTimeout(() => setIsLoading(true), 100);
+    setIsLoading(true);
     setHasError(false);
     setErrorMessage("");
+    
+    // Clear navigation flag after brief delay
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+    }
+    navigationTimeoutRef.current = window.setTimeout(() => {
+      setIsNavigating(false);
+    }, 100);
     
     if (playerRef.current && isYouTube(url)) {
       playerRef.current.destroy();
       playerRef.current = null;
     }
     
-    return () => clearTimeout(loadingTimer);
-  }, [currentIndex, url]);
-
-  // Preload next video for smoother navigation
-  useEffect(() => {
-    const nextIndex = currentIndex + 1;
-    if (nextIndex < urls.length && !isYouTube(urls[nextIndex])) {
-      // Preload next video
-      if (preloadRef.current) {
-        preloadRef.current.src = urls[nextIndex];
-        preloadRef.current.load();
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
       }
-    }
-  }, [currentIndex, urls]);
+    };
+  }, [currentIndex, url, isYouTube]);
+
+  // Preload next 2 videos for smoother navigation
+  useEffect(() => {
+    const preloadVideos = () => {
+      const nextIndex = currentIndex + 1;
+      const nextNextIndex = currentIndex + 2;
+      
+      // Preload next video
+      if (nextIndex < urls.length && !isYouTube(urls[nextIndex])) {
+        if (preloadRef.current) {
+          preloadRef.current.src = urls[nextIndex];
+          preloadRef.current.load();
+        }
+      }
+      
+      // Preload video after next
+      if (nextNextIndex < urls.length && !isYouTube(urls[nextNextIndex])) {
+        if (preloadRef2.current) {
+          preloadRef2.current.src = urls[nextNextIndex];
+          preloadRef2.current.load();
+        }
+      }
+    };
+    
+    preloadVideos();
+  }, [currentIndex, urls, isYouTube]);
 
   const getYouTubeVideoId = (url: string) => {
     if (url.includes('youtube.com/watch?v=')) {
@@ -266,24 +294,36 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   }, []);
 
   const goToNext = useCallback(() => {
-    if (currentIndex < urls.length - 1) {
-      // Stop current video immediately for smoother transition
-      if (playerRef.current && !isYouTube(url)) {
-        playerRef.current.pause();
-      }
-      setCurrentIndex(currentIndex + 1);
+    if (isNavigating || currentIndex >= urls.length - 1) return;
+    
+    // Set navigating flag immediately to prevent double-clicks
+    setIsNavigating(true);
+    
+    // Stop current video immediately for smoother transition
+    if (playerRef.current && !isYouTube(url)) {
+      playerRef.current.pause();
+      playerRef.current.currentTime = 0;
     }
-  }, [currentIndex, urls.length, url, isYouTube]);
+    
+    // Immediately change index - don't wait for anything
+    setCurrentIndex(prev => prev + 1);
+  }, [isNavigating, currentIndex, urls.length, url, isYouTube]);
 
   const goToPrevious = useCallback(() => {
-    if (currentIndex > 0) {
-      // Stop current video immediately for smoother transition
-      if (playerRef.current && !isYouTube(url)) {
-        playerRef.current.pause();
-      }
-      setCurrentIndex(currentIndex - 1);
+    if (isNavigating || currentIndex <= 0) return;
+    
+    // Set navigating flag immediately to prevent double-clicks
+    setIsNavigating(true);
+    
+    // Stop current video immediately for smoother transition
+    if (playerRef.current && !isYouTube(url)) {
+      playerRef.current.pause();
+      playerRef.current.currentTime = 0;
     }
-  }, [currentIndex, url, isYouTube]);
+    
+    // Immediately change index - don't wait for anything
+    setCurrentIndex(prev => prev - 1);
+  }, [isNavigating, currentIndex, url, isYouTube]);
 
   const skipBackward = useCallback(() => {
     if (!playerRef.current) return;
@@ -374,8 +414,19 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
         onMouseLeave={handleMouseLeave}
       >
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-secondary/80 backdrop-blur-sm z-10 animate-pulse">
-            <Play className="w-16 h-16 text-primary animate-pulse" />
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-secondary/90 to-secondary/70 backdrop-blur-sm z-10">
+            <div className="relative">
+              {/* Skeleton loader with pulsing animation */}
+              <div className="w-24 h-24 rounded-full bg-primary/20 animate-pulse flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-primary/30 animate-pulse flex items-center justify-center">
+                  <Play className="w-8 h-8 text-primary animate-pulse" />
+                </div>
+              </div>
+              {/* Loading text */}
+              <p className="text-center mt-4 text-sm text-muted-foreground animate-pulse">
+                Loading video...
+              </p>
+            </div>
           </div>
         )}
         
@@ -550,9 +601,15 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
               Your browser does not support the video tag.
             </video>
             
-            {/* Hidden preload video for next video */}
+            {/* Hidden preload videos for next videos */}
             <video
               ref={preloadRef}
+              preload="auto"
+              className="hidden"
+              style={{ display: 'none' }}
+            />
+            <video
+              ref={preloadRef2}
               preload="auto"
               className="hidden"
               style={{ display: 'none' }}
@@ -710,19 +767,19 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
             variant="ghost"
             size="icon"
             onClick={goToPrevious}
-            disabled={currentIndex === 0}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 bg-black/70 backdrop-blur-sm hover:bg-black/90 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white"
+            disabled={currentIndex === 0 || isNavigating}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 bg-black/70 backdrop-blur-sm hover:bg-black/90 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft className={`h-6 w-6 ${isNavigating ? 'animate-pulse' : ''}`} />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={goToNext}
-            disabled={currentIndex === urls.length - 1}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 bg-black/70 backdrop-blur-sm hover:bg-black/90 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white"
+            disabled={currentIndex === urls.length - 1 || isNavigating}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 bg-black/70 backdrop-blur-sm hover:bg-black/90 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-all"
           >
-            <ChevronRight className="h-6 w-6" />
+            <ChevronRight className={`h-6 w-6 ${isNavigating ? 'animate-pulse' : ''}`} />
           </Button>
         </>
       )}
