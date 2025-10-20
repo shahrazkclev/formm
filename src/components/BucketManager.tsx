@@ -9,6 +9,18 @@ import { toast } from 'sonner';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Slider } from './ui/slider';
+import { Checkbox } from './ui/checkbox';
+import { Progress } from './ui/progress';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import VideoContainer from './VideoContainer';
 
 interface VideoFile {
@@ -37,10 +49,17 @@ export default function BucketManager() {
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  
+  // Delete states
+  const [videoToDelete, setVideoToDelete] = useState<VideoFile | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
+  const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   
   // Player Customization Settings
   const [maxWidth, setMaxWidth] = useState(600);
@@ -127,28 +146,57 @@ export default function BucketManager() {
     if (!uploadFile) return;
     
     setUploading(true);
-    try {
+    setUploadProgress(0);
+    
+    return new Promise<void>((resolve, reject) => {
       const formData = new FormData();
       formData.append('file', uploadFile);
       
-      const response = await fetch(`${bucketUrl}/upload`, {
-        method: 'POST',
-        body: formData,
+      const xhr = new XMLHttpRequest();
+      
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          setUploadProgress(Math.round(percentComplete));
+        }
       });
       
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
+      // Handle completion
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          toast.success('Video uploaded successfully!');
+          setUploadFile(null);
+          setUploadProgress(0);
+          fetchVideos();
+          resolve();
+        } else {
+          toast.error(`Upload failed: ${xhr.statusText}`);
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+        setUploading(false);
+      });
       
-      toast.success('Video uploaded successfully!');
-      setUploadFile(null);
-      fetchVideos();
-    } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('Failed to upload video');
-    } finally {
-      setUploading(false);
-    }
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        console.error('Upload failed');
+        toast.error('Failed to upload video');
+        setUploading(false);
+        setUploadProgress(0);
+        reject(new Error('Upload failed'));
+      });
+      
+      // Handle abort
+      xhr.addEventListener('abort', () => {
+        toast.error('Upload cancelled');
+        setUploading(false);
+        setUploadProgress(0);
+        reject(new Error('Upload cancelled'));
+      });
+      
+      xhr.open('POST', `${bucketUrl}/upload`);
+      xhr.send(formData);
+    });
   };
 
   const uploadThumbnail = async (videoKey: string, file: File) => {
@@ -178,8 +226,7 @@ export default function BucketManager() {
   };
 
   const deleteVideo = async (videoKey: string) => {
-    if (!confirm('Are you sure you want to delete this video?')) return;
-    
+    setDeleting(true);
     try {
       const response = await fetch(`${bucketUrl}/delete/${videoKey}`, {
         method: 'DELETE',
@@ -190,11 +237,77 @@ export default function BucketManager() {
       }
       
       toast.success('Video deleted successfully!');
+      setVideoToDelete(null);
       fetchVideos();
     } catch (error) {
       console.error('Delete failed:', error);
       toast.error('Failed to delete video');
+    } finally {
+      setDeleting(false);
     }
+  };
+
+  const deleteBulkVideos = async () => {
+    if (selectedVideos.size === 0) {
+      toast.error('No videos selected');
+      return;
+    }
+
+    setDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const videoKey of Array.from(selectedVideos)) {
+      try {
+        const response = await fetch(`${bucketUrl}/delete/${videoKey}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to delete ${videoKey}:`, error);
+        failCount++;
+      }
+    }
+
+    setDeleting(false);
+    setSelectedVideos(new Set());
+    setBulkDeleteMode(false);
+
+    if (successCount > 0) {
+      toast.success(`Successfully deleted ${successCount} video(s)`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} video(s)`);
+    }
+
+    fetchVideos();
+  };
+
+  const toggleVideoSelection = (videoKey: string) => {
+    const newSelection = new Set(selectedVideos);
+    if (newSelection.has(videoKey)) {
+      newSelection.delete(videoKey);
+    } else {
+      newSelection.add(videoKey);
+    }
+    setSelectedVideos(newSelection);
+  };
+
+  const selectAllVideos = () => {
+    const actualVideos = videos.filter(video => 
+      !video.key.startsWith('thumbnails/') && 
+      !video.key.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/i)
+    );
+    setSelectedVideos(new Set(actualVideos.map(v => v.key)));
+  };
+
+  const deselectAllVideos = () => {
+    setSelectedVideos(new Set());
   };
 
   const copyToClipboard = async (text: string) => {
@@ -705,9 +818,63 @@ vidLoad();
               </CardContent>
             </Card>
           ) : (
+            <>
+              {/* Bulk Delete Controls */}
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <Switch
+                        checked={bulkDeleteMode}
+                        onCheckedChange={(checked) => {
+                          setBulkDeleteMode(checked);
+                          if (!checked) {
+                            setSelectedVideos(new Set());
+                          }
+                        }}
+                      />
+                      <Label className="text-sm font-medium">
+                        Bulk Delete Mode {bulkDeleteMode && selectedVideos.size > 0 && `(${selectedVideos.size} selected)`}
+                      </Label>
+                    </div>
+                    
+                    {bulkDeleteMode && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={selectAllVideos}
+                        >
+                          Select All
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={deselectAllVideos}
+                        >
+                          Deselect All
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={deleteBulkVideos}
+                          disabled={selectedVideos.size === 0 || deleting}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          {deleting ? 'Deleting...' : `Delete ${selectedVideos.size} Video(s)`}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+          
+          {videos.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {videos.map((video, index) => (
-                <Card key={video.key} className="overflow-hidden">
+                <Card key={video.key} className={`overflow-hidden ${bulkDeleteMode && selectedVideos.has(video.key) ? 'ring-2 ring-primary' : ''}`}>
                   <div className="aspect-video bg-muted relative">
                     {video.thumbnail ? (
                       <img 
@@ -726,6 +893,16 @@ vidLoad();
                     <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground">
                       {index + 1}
                     </Badge>
+                    
+                    {/* Bulk Delete Checkbox */}
+                    {bulkDeleteMode && (
+                      <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm rounded p-1">
+                        <Checkbox
+                          checked={selectedVideos.has(video.key)}
+                          onCheckedChange={() => toggleVideoSelection(video.key)}
+                        />
+                      </div>
+                    )}
                   </div>
                   
                   <CardContent className="p-4 space-y-3">
@@ -832,7 +1009,8 @@ vidLoad();
                         <Button 
                           size="sm" 
                           variant="destructive"
-                          onClick={() => deleteVideo(video.key)}
+                          onClick={() => setVideoToDelete(video)}
+                          disabled={deleting}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -893,15 +1071,29 @@ vidLoad();
                   accept="video/*"
                   onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                   className="w-full p-2 border rounded"
+                  disabled={uploading}
                 />
               </div>
               
               {uploadFile && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="font-medium text-foreground">{uploadFile.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatFileSize(uploadFile.size)} • {uploadFile.type}
-                  </p>
+                <div className="p-4 bg-muted rounded-lg space-y-3">
+                  <div>
+                    <p className="font-medium text-foreground">{uploadFile.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatFileSize(uploadFile.size)} • {uploadFile.type}
+                    </p>
+                  </div>
+                  
+                  {/* Upload Progress */}
+                  {uploading && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Uploading...</span>
+                        <span className="font-medium text-primary">{uploadProgress}%</span>
+                      </div>
+                      <Progress value={uploadProgress} className="h-2" />
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -911,7 +1103,7 @@ vidLoad();
                 className="w-full"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                {uploading ? 'Uploading...' : 'Upload Video'}
+                {uploading ? `Uploading... ${uploadProgress}%` : 'Upload Video'}
               </Button>
             </CardContent>
           </Card>
@@ -1002,6 +1194,30 @@ vidLoad();
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!videoToDelete} onOpenChange={(open) => !open && setVideoToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Video</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{videoToDelete?.key}</strong>?
+              <br />
+              This action cannot be undone and will permanently delete the video from your storage.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => videoToDelete && deleteVideo(videoToDelete.key)}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );
