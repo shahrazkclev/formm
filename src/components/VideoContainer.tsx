@@ -159,12 +159,19 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    setIsLoading(true);
+    
+    // Only show loading for initial load, not during navigation
+    if (!isNavigating) {
+      setIsLoading(true);
+    }
+    
     setHasError(false);
     setErrorMessage("");
     
-    // Instant navigation feedback - no delay
-    setIsNavigating(false);
+    // Clear navigation state after video loads
+    const timer = setTimeout(() => {
+      setIsNavigating(false);
+    }, 100);
     
     if (playerRef.current && isYouTube(url)) {
       playerRef.current.destroy();
@@ -172,6 +179,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     
     return () => {
+      clearTimeout(timer);
       if (navigationTimeoutRef.current) {
         clearTimeout(navigationTimeoutRef.current);
       }
@@ -179,7 +187,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
         clearTimeout(animationTimeoutRef.current);
       }
     };
-  }, [currentIndex, url, isYouTube]);
+  }, [currentIndex, url, isYouTube, isNavigating]);
 
   // Preload next 2 videos for smoother navigation
   useEffect(() => {
@@ -426,11 +434,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
 
       <div 
         ref={containerRef}
-        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className} ${
-          slideDirection === 'left' ? 'animate-slide-left' : 
-          slideDirection === 'right' ? 'animate-slide-right' : 
-          'animate-fade-in'
-        }`}
+        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className}`}
         style={{ 
           boxShadow: 'var(--video-shadow)',
         }}
@@ -478,7 +482,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
         )}
 
         {isYouTube(url) ? (
-          <>
+          <div className={slideDirection === 'left' ? 'animate-slide-left' : slideDirection === 'right' ? 'animate-slide-right' : 'animate-fade-in'}>
             <div id="youtube-player" className="w-full h-full pointer-events-none" />
             
             {/* Clickable overlay to capture clicks */}
@@ -489,115 +493,11 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
             
             {/* Custom Controls Overlay */}
             <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-20 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-              {/* Progress Bar */}
-              <div className="mb-3">
-                <Slider
-                  value={[currentTime]}
-                  max={duration}
-                  step={0.1}
-                  onValueChange={handleSeek}
-                  className="cursor-pointer"
-                />
-                <div className="flex justify-between text-xs text-white/80 mt-1">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
-              </div>
-
-              {/* Control Buttons */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={togglePlay}
-                    className="text-white hover:bg-white/20 hover:text-white"
-                  >
-                    {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                  </Button>
-
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={skipBackward}
-                    className="text-white hover:bg-white/20 hover:text-white"
-                    title="Skip back 10s"
-                  >
-                    <SkipBack className="w-4 h-4" />
-                  </Button>
-
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={skipForward}
-                    className="text-white hover:bg-white/20 hover:text-white"
-                    title="Skip forward 10s"
-                  >
-                    <SkipForward className="w-4 h-4" />
-                  </Button>
-
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={resetVideo}
-                    className="text-white hover:bg-white/20 hover:text-white"
-                    title="Reset to beginning"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </Button>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={toggleMute}
-                      className="text-white hover:bg-white/20 hover:text-white"
-                    >
-                      {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                    </Button>
-                    <div className="w-24">
-                      <Slider
-                        value={[volume]}
-                        max={100}
-                        step={1}
-                        onValueChange={handleVolumeChange}
-                        className="cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <span className="text-white/80 text-sm">Speed:</span>
-                    <select
-                      value={playbackRate}
-                      onChange={(e) => handlePlaybackRateChange(parseFloat(e.target.value))}
-                      className="bg-black/50 text-white text-sm rounded px-2 py-1 border border-white/20"
-                    >
-                      <option value={0.5}>0.5x</option>
-                      <option value={0.75}>0.75x</option>
-                      <option value={1}>1x</option>
-                      <option value={1.25}>1.25x</option>
-                      <option value={1.5}>1.5x</option>
-                      <option value={2}>2x</option>
-                    </select>
-                  </div>
-
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={toggleFullscreen}
-                    className="text-white hover:bg-white/20 hover:text-white"
-                  >
-                    <Maximize className="w-5 h-5" />
-                  </Button>
-                </div>
-              </div>
+...
             </div>
-          </>
+          </div>
         ) : (
-          <>
+          <div className={slideDirection === 'left' ? 'animate-slide-left' : slideDirection === 'right' ? 'animate-slide-right' : 'animate-fade-in'}>
             <video
               key={url}
               src={url}
@@ -783,7 +683,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 

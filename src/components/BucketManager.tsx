@@ -456,16 +456,15 @@ v.onloadeddata=()=>{
     
     try {
       await copyToClipboard(htmlCode);
-      toast.success('HTML code copied to clipboard!', {
-        description: 'Paste it into your website to embed the video carousel',
-        duration: 3000
+      toast.success('✓ Copied!', {
+        description: 'HTML snippet ready to paste',
+        duration: 2000
       });
-      console.log('HTML code copied successfully');
     } catch (error) {
       console.error('Failed to copy:', error);
-      toast.error('Failed to copy code to clipboard', {
-        description: 'Please try again or check browser permissions',
-        duration: 3000
+      toast.error('Copy failed', {
+        description: 'Please try again',
+        duration: 2000
       });
     }
   };
