@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Video Player</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
+    <!-- Custom CSS for enhanced styling -->
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        video::-webkit-media-controls-panel { background: #000000; }
+        video::-webkit-media-controls-play-button:hover,
+        video::-webkit-media-controls-mute-button:hover,
+        video::-webkit-media-controls-fullscreen-button:hover { filter: brightness(1.2); }
+        video::-webkit-media-controls-timeline { background: rgba(255,255,255,0.3); height: 4px; }
+        video::-webkit-media-controls-current-time-display,
+        video::-webkit-media-controls-time-remaining-display { color: #3b82f6; }
+
+        .container {
+            position: relative;
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            background: #000000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            accent-color: #3b82f6;
+        }
+
+        .skeleton {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            display: none;
+            z-index: 1;
+        }
+
+        .skeleton.active {
+            display: block;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .nav-btn {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: #ffffff;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            opacity: 1;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        #nextBtn {
+            left: auto;
+            right: 10px;
+        }
+
+        /* Enhanced controls */
+        .controls-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 20;
+        }
+
+        .video-container:hover .controls-overlay {
+            opacity: 1;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: hsl(var(--primary));
+            border-radius: 2px;
+            transition: width 0.1s ease;
+        }
+
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .volume-slider {
+            width: 80px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .volume-fill {
+            height: 100%;
+            background: hsl(var(--primary));
+            border-radius: 2px;
+            transition: width 0.1s ease;
+        }
+
+        .time-display {
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .nav-buttons {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .nav-buttons:hover {
+            background: rgba(0,0,0,0.9);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .nav-buttons:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: translateY(-50%) scale(1);
+        }
+
+        .prev-btn {
+            left: 20px;
+        }
+
+        .next-btn {
+            right: 20px;
+        }
+
+        .video-counter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 30;
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(139, 92, 246, 0.2);
+            border-top: 4px solid hsl(var(--primary));
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 25;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #ef4444;
+            z-index: 25;
+        }
+
+        .error-message h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .error-message p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .nav-buttons {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            
+            .prev-btn {
+                left: 10px;
+            }
+            
+            .next-btn {
+                right: 10px;
+            }
+            
+            .controls-overlay {
+                padding: 15px;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: hsl(var(--muted));
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: hsl(var(--muted-foreground));
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: hsl(var(--primary));
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-background via-background to-secondary/20 min-h-screen">
+    <div class="max-w-6xl mx-auto p-6">
+        <!-- Header -->
+        <div class="text-center space-y-4 py-8">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Enhanced Video Player
+            </h1>
+            <p class="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Advanced video carousel with smooth animations, custom controls, and responsive design
+            </p>
+        </div>
+
+        <div class="container">
+            <div class="video-wrapper">
+                <div id="skeleton" class="skeleton"></div>
+                <video id="vp" controls preload="metadata"></video>
+                <video id="preload" style="display: none;" preload="auto"></video>
+                <button id="prevBtn" class="nav-btn">‹</button>
+                <button id="nextBtn" class="nav-btn">›</button>
+            </div>
+        </div>
+
+        <!-- Status and Debug Info -->
+        <div class="mt-8 p-6 bg-card rounded-lg border border-border">
+            <h3 class="text-lg font-semibold mb-4">Player Status</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <p class="text-sm text-muted-foreground">Current Video</p>
+                    <p class="font-medium" id="currentVideo">1</p>
+                </div>
+                <div>
+                    <p class="text-sm text-muted-foreground">Total Videos</p>
+                    <p class="font-medium" id="totalVideos">3</p>
+                </div>
+                <div>
+                    <p class="text-sm text-muted-foreground">Preload Status</p>
+                    <p class="font-medium" id="preloadStatus">Loading...</p>
+                </div>
+                <div>
+                    <p class="text-sm text-muted-foreground">Status</p>
+                    <p class="font-medium" id="status">Ready</p>
+                </div>
+            </div>
+            
+            <!-- Preload Progress -->
+            <div class="mt-4">
+                <div class="flex items-center justify-between text-sm mb-2">
+                    <span class="text-muted-foreground">Preloading Progress</span>
+                    <span class="font-medium" id="preloadProgress">0%</span>
+                </div>
+                <div class="w-full bg-muted rounded-full h-2">
+                    <div class="bg-primary h-2 rounded-full transition-all duration-300" id="preloadBar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const vids = [
+            {"url":"https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4","thumbnail":"https://sample-videos.com/zip/10/jpg/SampleJPGImage_1280x720_1mb.jpg","name":"Sample Video 1"},
+            {"url":"https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4","thumbnail":"https://sample-videos.com/zip/10/jpg/SampleJPGImage_1280x720_2mb.jpg","name":"Sample Video 2"},
+            {"url":"https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_5mb.mp4","thumbnail":"https://sample-videos.com/zip/10/jpg/SampleJPGImage_1280x720_5mb.jpg","name":"Sample Video 3"}
+        ];
+
+        let i = 0;
+        const v = document.getElementById('vp');
+        const p = document.getElementById('preload');
+        const skeleton = document.getElementById('skeleton');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+            initializePlayer() {
+                // Initialize Lucide icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+                
+                // Set up video elements
+                this.videoElements = [];
+                for (let i = 0; i < this.totalVideos; i++) {
+                    const video = document.getElementById(`slide-${i}`).querySelector('video');
+                    this.videoElements.push(video);
+                    this.setupVideoEvents(video, i);
+                    
+                    // Initialize video state
+                    this.videoStates.set(i, {
+                        isLoading: true,
+                        hasError: false,
+                        isLoaded: false,
+                        thumbnailLoaded: false
+                    });
+                }
+            }
+
+            async preloadContent() {
+                this.updatePreloadStatus('Loading thumbnails...', 0);
+                
+                // Preload thumbnails first (faster)
+                await this.preloadThumbnails();
+                this.updatePreloadStatus('Loading video metadata...', 50);
+                
+                // Preload video metadata
+                await this.preloadVideos();
+                this.updatePreloadStatus('Ready', 100);
+            }
+
+            updatePreloadStatus(status, progress) {
+                document.getElementById('preloadStatus').textContent = status;
+                document.getElementById('preloadProgress').textContent = `${progress}%`;
+                document.getElementById('preloadBar').style.width = `${progress}%`;
+            }
+
+            async preloadThumbnails() {
+                const promises = this.videos.map(async (video, index) => {
+                    try {
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        await new Promise((resolve, reject) => {
+                            img.onload = () => {
+                                this.preloadedThumbnails.add(index);
+                                this.videoStates.get(index).thumbnailLoaded = true;
+                                resolve();
+                            };
+                            img.onerror = reject;
+                            img.src = video.thumbnail;
+                        });
+                        console.log(`Thumbnail ${index + 1} preloaded`);
+                    } catch (error) {
+                        console.warn(`Failed to preload thumbnail ${index + 1}:`, error);
+                    }
+                });
+                
+                await Promise.allSettled(promises);
+            }
+
+            async preloadVideos() {
+                const promises = this.videos.map(async (video, index) => {
+                    try {
+                        const videoElement = this.videoElements[index];
+                        videoElement.preload = 'metadata';
+                        videoElement.load();
+                        
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => {
+                                reject(new Error('Timeout'));
+                            }, 10000);
+                            
+                            videoElement.addEventListener('loadedmetadata', () => {
+                                clearTimeout(timeout);
+                                this.preloadedVideos.add(index);
+                                this.videoStates.get(index).isLoaded = true;
+                                this.videoStates.get(index).isLoading = false;
+                                resolve();
+                            }, { once: true });
+                            
+                            videoElement.addEventListener('error', () => {
+                                clearTimeout(timeout);
+                                reject(new Error('Video load error'));
+                            }, { once: true });
+                        });
+                        
+                        console.log(`Video ${index + 1} metadata preloaded`);
+                    } catch (error) {
+                        console.warn(`Failed to preload video ${index + 1}:`, error);
+                        this.videoStates.get(index).hasError = true;
+                        this.videoStates.get(index).isLoading = false;
+                    }
+                });
+                
+                await Promise.allSettled(promises);
+            }
+
+            setupVideoEvents(video, index) {
+                video.addEventListener('loadedmetadata', () => {
+                    this.updateTimeDisplay();
+                });
+
+                video.addEventListener('timeupdate', () => {
+                    if (index === this.currentIndex) {
+                        this.updateProgress();
+                        this.updateTimeDisplay();
+                    }
+                });
+
+                video.addEventListener('play', () => {
+                    if (index === this.currentIndex) {
+                        this.updatePlayPauseButton(true);
+                    }
+                });
+
+                video.addEventListener('pause', () => {
+                    if (index === this.currentIndex) {
+                        this.updatePlayPauseButton(false);
+                    }
+                });
+
+                video.addEventListener('volumechange', () => {
+                    if (index === this.currentIndex) {
+                        this.updateVolumeDisplay();
+                    }
+                });
+
+                video.addEventListener('error', (e) => {
+                    console.error(`Video ${index + 1} error:`, e);
+                    this.showError(`Failed to load video ${index + 1}`);
+                });
+            }
+
+            setupEventListeners() {
+                // Mouse events for controls
+                const container = document.querySelector('.video-container');
+                let hideControlsTimeout;
+
+                container.addEventListener('mousemove', () => {
+                    this.showControls();
+                    clearTimeout(hideControlsTimeout);
+                    hideControlsTimeout = setTimeout(() => {
+                        this.hideControls();
+                    }, 3000);
+                });
+
+                container.addEventListener('mouseleave', () => {
+                    hideControlsTimeout = setTimeout(() => {
+                        this.hideControls();
+                    }, 1000);
+                });
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'ArrowLeft') {
+                        this.prevVideo();
+                    } else if (e.code === 'ArrowRight') {
+                        this.nextVideo();
+                    } else if (e.code === 'Space') {
+                        e.preventDefault();
+                        this.togglePlayPause();
+                    } else if (e.code === 'KeyF') {
+                        this.toggleFullscreen();
+                    }
+                });
+            }
+
+            updateDisplay() {
+                document.getElementById('currentVideo').textContent = this.currentIndex + 1;
+                document.getElementById('totalVideos').textContent = this.totalVideos;
+                document.getElementById('counter').textContent = `${this.currentIndex + 1} / ${this.totalVideos}`;
+                
+                // Update slide positions with smooth animations
+                for (let i = 0; i < this.totalVideos; i++) {
+                    const slide = document.getElementById(`slide-${i}`);
+                    slide.className = 'video-slide';
+                    
+                    if (i === this.currentIndex) {
+                        slide.classList.add('active');
+                        // Hide thumbnail for active video
+                        this.hideThumbnail(i);
+                    } else if (i < this.currentIndex) {
+                        slide.classList.add('prev');
+                        // Show thumbnail for non-active videos
+                        this.showThumbnail(i);
+                    } else {
+                        slide.classList.add('next');
+                        // Show thumbnail for non-active videos
+                        this.showThumbnail(i);
+                    }
+                }
+
+                // Update navigation buttons
+                const prevBtn = document.getElementById('prevBtn');
+                const nextBtn = document.getElementById('nextBtn');
+                prevBtn.disabled = this.currentIndex === 0;
+                nextBtn.disabled = this.currentIndex === this.totalVideos - 1;
+
+                // Update current video state
+                this.updatePlayPauseButton();
+                this.updateVolumeDisplay();
+                this.updateTimeDisplay();
+            }
+
+            showThumbnail(index) {
+                const thumbnail = document.getElementById(`thumbnail-${index}`);
+                if (thumbnail) {
+                    thumbnail.style.opacity = '1';
+                    thumbnail.style.pointerEvents = 'auto';
+                }
+            }
+
+            hideThumbnail(index) {
+                const thumbnail = document.getElementById(`thumbnail-${index}`);
+                if (thumbnail) {
+                    thumbnail.style.opacity = '0';
+                    thumbnail.style.pointerEvents = 'none';
+                }
+            }
+
+            prevVideo() {
+                if (this.isNavigating || this.currentIndex <= 0) return;
+                
+                this.isNavigating = true;
+                this.currentIndex--;
+                this.updateDisplay();
+                this.setStatus('Previous video loaded');
+                
+                setTimeout(() => {
+                    this.isNavigating = false;
+                }, 300);
+            }
+
+            nextVideo() {
+                if (this.isNavigating || this.currentIndex >= this.totalVideos - 1) return;
+                
+                this.isNavigating = true;
+                this.currentIndex++;
+                this.updateDisplay();
+                this.setStatus('Next video loaded');
+                
+                setTimeout(() => {
+                    this.isNavigating = false;
+                }, 300);
+            }
+
+            goToVideo(index) {
+                if (this.isNavigating || index === this.currentIndex || index < 0 || index >= this.totalVideos) return;
+                
+                this.isNavigating = true;
+                this.currentIndex = index;
+                this.updateDisplay();
+                this.setStatus(`Video ${index + 1} loaded`);
+                
+                setTimeout(() => {
+                    this.isNavigating = false;
+                }, 300);
+            }
+
+            getCurrentVideo() {
+                return this.videoElements[this.currentIndex];
+            }
+
+            togglePlayPause() {
+                const video = this.getCurrentVideo();
+                if (video.paused) {
+                    video.play();
+                } else {
+                    video.pause();
+                }
+            }
+
+            updatePlayPauseButton(isPlaying) {
+                const playIcon = document.getElementById('playIcon');
+                if (isPlaying === undefined) {
+                    isPlaying = !this.getCurrentVideo().paused;
+                }
+                playIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+
+            skipBackward() {
+                const video = this.getCurrentVideo();
+                video.currentTime = Math.max(0, video.currentTime - 10);
+            }
+
+            skipForward() {
+                const video = this.getCurrentVideo();
+                video.currentTime = Math.min(video.duration, video.currentTime + 10);
+            }
+
+            resetVideo() {
+                const video = this.getCurrentVideo();
+                video.currentTime = 0;
+            }
+
+            toggleMute() {
+                const video = this.getCurrentVideo();
+                video.muted = !video.muted;
+                this.updateVolumeDisplay();
+            }
+
+            updateVolumeDisplay() {
+                const video = this.getCurrentVideo();
+                const volumeIcon = document.getElementById('volumeIcon');
+                const volumeFill = document.getElementById('volumeFill');
+                
+                if (video.muted || video.volume === 0) {
+                    volumeIcon.setAttribute('data-lucide', 'volume-x');
+                } else if (video.volume < 0.5) {
+                    volumeIcon.setAttribute('data-lucide', 'volume-1');
+                } else {
+                    volumeIcon.setAttribute('data-lucide', 'volume-2');
+                }
+                
+                volumeFill.style.width = `${video.muted ? 0 : video.volume * 100}%`;
+                
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+
+            setVolume(event) {
+                const video = this.getCurrentVideo();
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const percentage = x / rect.width;
+                video.volume = Math.max(0, Math.min(1, percentage));
+                video.muted = false;
+                this.updateVolumeDisplay();
+            }
+
+            updateProgress() {
+                const video = this.getCurrentVideo();
+                const progressFill = document.getElementById('progressFill');
+                const percentage = (video.currentTime / video.duration) * 100;
+                progressFill.style.width = `${percentage}%`;
+            }
+
+            seekTo(event) {
+                const video = this.getCurrentVideo();
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const percentage = x / rect.width;
+                video.currentTime = video.duration * percentage;
+            }
+
+            updateTimeDisplay() {
+                const video = this.getCurrentVideo();
+                const current = this.formatTime(video.currentTime);
+                const duration = this.formatTime(video.duration);
+                document.getElementById('timeDisplay').textContent = `${current} / ${duration}`;
+            }
+
+            formatTime(seconds) {
+                if (isNaN(seconds)) return '0:00';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            toggleFullscreen() {
+                const container = document.querySelector('.video-container');
+                if (!document.fullscreenElement) {
+                    container.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+
+            showControls() {
+                const controls = document.getElementById('controlsOverlay');
+                controls.style.opacity = '1';
+            }
+
+            hideControls() {
+                const controls = document.getElementById('controlsOverlay');
+                controls.style.opacity = '0';
+            }
+
+            setStatus(message) {
+                document.getElementById('status').textContent = message;
+                setTimeout(() => {
+                    document.getElementById('status').textContent = 'Ready';
+                }, 2000);
+            }
+
+            showError(message) {
+                this.setStatus(`Error: ${message}`);
+            }
+        }
+
+        // Global functions for HTML onclick handlers
+        function prevVideo() {
+            player.prevVideo();
+        }
+
+        function nextVideo() {
+            player.nextVideo();
+        }
+
+        function togglePlayPause() {
+            player.togglePlayPause();
+        }
+
+        function skipBackward() {
+            player.skipBackward();
+        }
+
+        function skipForward() {
+            player.skipForward();
+        }
+
+        function resetVideo() {
+            player.resetVideo();
+        }
+
+        function toggleMute() {
+            player.toggleMute();
+        }
+
+        function setVolume(event) {
+            player.setVolume(event);
+        }
+
+        function seekTo(event) {
+            player.seekTo(event);
+        }
+
+        function toggleFullscreen() {
+            player.toggleFullscreen();
+        }
+
+        function goToVideo(index) {
+            player.goToVideo(index);
+        }
+
+        // Initialize the enhanced video player
+        let player;
+        document.addEventListener('DOMContentLoaded', () => {
+            player = new EnhancedVideoPlayer();
+        });
+    </script>
+</body>
+</html>

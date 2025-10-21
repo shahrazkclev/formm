@@ -366,91 +366,192 @@ export default function BucketManager() {
       name: video.key
     }));
 
-    // Generate clean embeddable HTML with customization and smooth animations
-    const currentArrows = arrowIcons[arrowStyle as keyof typeof arrowIcons];
-    const htmlCode = `<style>
-video::-webkit-media-controls-panel { background: ${backgroundColor}; }
-video::-webkit-media-controls-play-button:hover,
-video::-webkit-media-controls-mute-button:hover,
-video::-webkit-media-controls-fullscreen-button:hover { filter: brightness(1.2); }
-video::-webkit-media-controls-timeline { background: rgba(255,255,255,0.3); height: 4px; }
-video::-webkit-media-controls-current-time-display,
-video::-webkit-media-controls-time-remaining-display { color: ${playerAccentColor}; }
-@keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
-.slide-right { animation: slideInRight 0.4s ease-out; }
-.slide-left { animation: slideInLeft 0.4s ease-out; }
-</style>
-<div style="position: relative; max-width: ${maxWidth}px; margin: 0 auto;">
-    <div style="position: relative; width: 100%; padding-bottom: ${aspectRatio.toFixed(2)}%; background: ${backgroundColor}; border-radius: ${borderRadius}px; overflow: hidden;">
-        <video id="vp" controls style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; accent-color: ${playerAccentColor};"></video>
-        <video id="preload" style="display: none;"></video>
+    // Generate clean, minimal HTML like the example
+    const htmlCode = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+        }
+
+        video::-webkit-media-controls-panel { background: ${backgroundColor}; }
+        video::-webkit-media-controls-play-button:hover,
+        video::-webkit-media-controls-mute-button:hover,
+        video::-webkit-media-controls-fullscreen-button:hover { filter: brightness(1.2); }
+        video::-webkit-media-controls-timeline { background: rgba(255,255,255,0.3); height: 4px; }
+        video::-webkit-media-controls-current-time-display,
+        video::-webkit-media-controls-time-remaining-display { color: ${playerAccentColor}; }
+
+        .container {
+            position: relative;
+            max-width: ${maxWidth}px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            padding-bottom: ${aspectRatio.toFixed(2)}%;
+            background: ${backgroundColor};
+            border-radius: ${borderRadius}px;
+            overflow: hidden;
+        }
+
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            accent-color: ${playerAccentColor};
+        }
+
+        .skeleton {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            display: none;
+            z-index: 1;
+        }
+
+        .skeleton.active {
+            display: block;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .nav-btn {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: ${arrowBgColor};
+            border: none;
+            color: ${arrowColor};
+            width: ${arrowSize}px;
+            height: ${arrowSize}px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: ${arrowSize * 0.4}px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            opacity: 1;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        #nextBtn {
+            left: auto;
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="video-wrapper">
+            <div id="skeleton" class="skeleton"></div>
+            <video id="vp" controls preload="metadata"></video>
+            <video id="preload" style="display: none;" preload="auto"></video>
+            ${showArrows ? `<button id="prevBtn" class="nav-btn">‹</button>
+            <button id="nextBtn" class="nav-btn">›</button>` : ''}
+        </div>
     </div>
-    ${showArrows ? `<button onclick="vidPrev()" id="prevBtn" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.left}</button>
-    <button onclick="vidNext()" id="nextBtn" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: ${arrowBgColor}; border: none; color: ${arrowColor}; width: ${arrowSize}px; height: ${arrowSize}px; border-radius: 50%; cursor: pointer; font-size: ${arrowSize * 0.5}px; opacity: 0.7; transition: opacity 0.2s; z-index: 10; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">${currentArrows.right}</button>` : ''}
-</div>
-<script>
-const vids=${JSON.stringify(videoData)};
-let i=0,transitioning=false;
-const v=document.getElementById('vp'),p=document.getElementById('preload');
-const prevBtn=document.getElementById('prevBtn'),nextBtn=document.getElementById('nextBtn');
 
-function updateButtons(){
-  if(prevBtn)prevBtn.disabled=i===0;
-  if(nextBtn)nextBtn.disabled=i===vids.length-1;
-}
+    <script>
+        const vids = ${JSON.stringify(videoData)};
 
-function preloadNext(){
-  if(i<vids.length-1&&p){
-    p.src=vids[i+1].url;
-    p.load();
-  }
-}
+        let i = 0;
+        const v = document.getElementById('vp');
+        const p = document.getElementById('preload');
+        const skeleton = document.getElementById('skeleton');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
 
-function vidLoad(direction){
-  if(transitioning)return;
-  transitioning=true;
-  
-  v.style.opacity='0';
-  v.style.transition='opacity 0.2s ease-out';
-  
-  setTimeout(()=>{
-    v.src=vids[i].url;
-    if(vids[i].thumbnail)v.poster=vids[i].thumbnail;
-    v.className=direction==='next'?'slide-right':'slide-left';
-    v.load();
-    
-    v.onloadeddata=()=>{
-      v.style.opacity='1';
-      transitioning=false;
-      updateButtons();
-      preloadNext();
-    };
-  },200);
-}
+        function updateButtons() {
+            if (prevBtn) prevBtn.disabled = i === 0;
+            if (nextBtn) nextBtn.disabled = i === vids.length - 1;
+        }
 
-function vidPrev(){
-  if(i>0&&!transitioning){
-    i--;
-    vidLoad('prev');
-  }
-}
+        function preloadAdjacent() {
+            if (i < vids.length - 1) {
+                p.src = vids[i + 1].url;
+                p.load();
+            }
+        }
 
-function vidNext(){
-  if(i<vids.length-1&&!transitioning){
-    i++;
-    vidLoad('next');
-  }
-}
+        function changeVideo() {
+            skeleton.classList.add('active');
+            v.src = vids[i].url;
+            v.poster = vids[i].thumbnail;
+            v.load();
+            
+            v.onloadeddata = () => {
+                skeleton.classList.remove('active');
+            };
+            
+            updateButtons();
+            preloadAdjacent();
+        }
 
-v.src=vids[0].url;
-if(vids[0].thumbnail)v.poster=vids[0].thumbnail;
-v.load();
-v.onloadeddata=()=>{
-  updateButtons();
-  preloadNext();
-};
-</script>`;
+        function vidPrev() {
+            if (i > 0) {
+                i--;
+                changeVideo();
+            }
+        }
+
+        function vidNext() {
+            if (i < vids.length - 1) {
+                i++;
+                changeVideo();
+            }
+        }
+
+        if (prevBtn) prevBtn.onclick = vidPrev;
+        if (nextBtn) nextBtn.onclick = vidNext;
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') vidPrev();
+            if (e.key === 'ArrowRight') vidNext();
+        });
+
+        // Init
+        v.src = vids[0].url;
+        v.poster = vids[0].thumbnail;
+        updateButtons();
+        preloadAdjacent();
+    </script>
+</body>
+</html>`;
 
     console.log('Generated HTML code length:', htmlCode.length);
     
