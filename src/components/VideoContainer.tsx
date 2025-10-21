@@ -11,28 +11,55 @@ interface VideoContainerProps {
 
 const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoContainerProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const url = urls[currentIndex] || "";
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(100);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [playbackRate, setPlaybackRate] = useState(1);
-  const [showControls, setShowControls] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
-  const [preloadedVideos, setPreloadedVideos] = useState<Set<number>>(new Set());
-  const playerRef = useRef<any>(null);
-  const preloadRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
+  const [showControls, setShowControls] = useState(true);
+  
+  // Video states for each video
+  const [videoStates, setVideoStates] = useState<Map<number, {
+    isLoading: boolean;
+    hasError: boolean;
+    errorMessage: string;
+    isPlaying: boolean;
+    isMuted: boolean;
+    volume: number;
+    currentTime: number;
+    duration: number;
+    playbackRate: number;
+  }>>(new Map());
+  
+  const playerRefs = useRef<Map<number, HTMLVideoElement | any>>(new Map());
+  const youtubePlayerRefs = useRef<Map<number, any>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<number | null>(null);
+  const intervalRefs = useRef<Map<number, number>>(new Map());
   const hideControlsTimeout = useRef<number | null>(null);
-  const navigationTimeoutRef = useRef<number | null>(null);
   const animationTimeoutRef = useRef<number | null>(null);
+  const preloadRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
+  const [preloadedVideos, setPreloadedVideos] = useState<Set<number>>(new Set());
+
+  // Helper functions for video state management
+  const getVideoState = useCallback((index: number) => {
+    return videoStates.get(index) || {
+      isLoading: true,
+      hasError: false,
+      errorMessage: "",
+      isPlaying: false,
+      isMuted: false,
+      volume: 100,
+      currentTime: 0,
+      duration: 0,
+      playbackRate: 1,
+    };
+  }, [videoStates]);
+
+  const updateVideoState = useCallback((index: number, updates: Partial<typeof getVideoState>) => {
+    setVideoStates(prev => {
+      const newMap = new Map(prev);
+      const currentState = newMap.get(index) || getVideoState(index);
+      newMap.set(index, { ...currentState, ...updates });
+      return newMap;
+    });
+  }, [getVideoState]);
 
   // Memoize YouTube detection to prevent recalculation
   const isYouTube = useCallback((url: string) => {
@@ -54,62 +81,65 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     return `https://www.youtube.com/embed/${videoId}`;
   }, []);
 
-  const handleLoad = useCallback(() => {
-    setIsLoading(false);
-  }, []);
+  // Event handlers for individual videos
+  const handleLoad = useCallback((index: number) => {
+    updateVideoState(index, { isLoading: false });
+  }, [updateVideoState]);
 
-  const handleError = useCallback((event?: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-    setIsLoading(false);
-    setHasError(true);
-    
-    // Check if this is a Cloudflare R2 URL or external URL
+  const handleError = useCallback((index: number, event?: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const url = urls[index];
     const isR2Url = url.includes('r2.dev') || url.includes('cloudflare');
     const isExternalUrl = !url.startsWith(window.location.origin);
     
-    // Try to get more specific error information
+    let errorMessage = "Failed to load video.";
     const video = event?.currentTarget;
     if (video) {
       const error = video.error;
       if (error) {
         switch (error.code) {
           case 1: // MEDIA_ERR_ABORTED
-            setErrorMessage(isR2Url || isExternalUrl ? 
+            errorMessage = isR2Url || isExternalUrl ? 
               "Video loading was aborted. This is likely a CORS issue. Try removing crossOrigin attribute or configure CORS on your server." : 
-              "Video loading was aborted.");
+              "Video loading was aborted.";
             break;
           case 2: // MEDIA_ERR_NETWORK
-            setErrorMessage(isR2Url || isExternalUrl ? 
+            errorMessage = isR2Url || isExternalUrl ? 
               "Network error occurred while loading video. This is likely a CORS issue. Check your server's CORS configuration." : 
-              "Network error occurred while loading video. Check your internet connection.");
+              "Network error occurred while loading video. Check your internet connection.";
             break;
           case 3: // MEDIA_ERR_DECODE
-            setErrorMessage("Video format not supported or corrupted.");
+            errorMessage = "Video format not supported or corrupted.";
             break;
           case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-            setErrorMessage(isR2Url || isExternalUrl ? 
+            errorMessage = isR2Url || isExternalUrl ? 
               "Video source not supported. This is likely a CORS issue. Configure CORS headers on your server to allow video access." : 
-              "Video source not supported. Check the URL and file format.");
+              "Video source not supported. Check the URL and file format.";
             break;
           default:
-            setErrorMessage(isR2Url || isExternalUrl ? 
+            errorMessage = isR2Url || isExternalUrl ? 
               "Unknown error occurred while loading video. This might be a CORS issue. Check your server's CORS configuration." : 
-              "Unknown error occurred while loading video.");
+              "Unknown error occurred while loading video.";
         }
-      } else {
-        setErrorMessage(isR2Url || isExternalUrl ? 
-          "Failed to load video. This is likely a CORS issue. Configure CORS headers on your server." : 
-          "Failed to load video. Please check the URL.");
       }
-    } else {
-      setErrorMessage(isR2Url || isExternalUrl ? 
-        "Failed to load video. This is likely a CORS issue. Configure CORS headers on your server." : 
-        "Failed to load video. Please check the URL.");
     }
-  }, [url]);
+    
+    updateVideoState(index, { 
+      isLoading: false, 
+      hasError: true, 
+      errorMessage 
+    });
+  }, [updateVideoState, urls]);
 
   // Load YouTube IFrame API
   useEffect(() => {
-    if (!isYouTube(url)) return;
+    const currentUrl = urls[currentIndex];
+    if (!currentUrl || !isYouTube(currentUrl)) return;
+
+    // Check if YouTube API is already loaded
+    if ((window as any).YT && (window as any).YT.Player) {
+      initializeYouTubePlayer(currentUrl, currentIndex);
+      return;
+    }
 
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
@@ -117,83 +147,93 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
 
     (window as any).onYouTubeIframeAPIReady = () => {
-      if (playerRef.current) return;
-      
-      const videoId = getYouTubeVideoId(url);
-      playerRef.current = new (window as any).YT.Player('youtube-player', {
-        videoId,
-        playerVars: {
-          controls: 0,
-          modestbranding: 1,
-          rel: 0,
-          showinfo: 0,
-          fs: 0,
-          iv_load_policy: 3,
-          disablekb: 1,
-          playsinline: 1,
-        },
-        events: {
-          onReady: (event: any) => {
-            setIsLoading(false);
-            setDuration(event.target.getDuration());
-          },
-          onStateChange: (event: any) => {
-            if (event.data === (window as any).YT.PlayerState.PLAYING) {
-              setIsPlaying(true);
-              startProgressTracking();
-            } else {
-              setIsPlaying(false);
-              stopProgressTracking();
-            }
-          },
-          onError: () => {
-            handleError();
-          }
-        }
-      });
+      initializeYouTubePlayer(currentUrl, currentIndex);
     };
-  }, [currentIndex, url]);
+  }, [currentIndex, urls]);
+
+  const initializeYouTubePlayer = useCallback((url: string, index: number) => {
+    const videoId = getYouTubeVideoId(url);
+    if (!videoId) return;
+
+    const playerElement = document.getElementById(`youtube-player-${index}`);
+    if (!playerElement) return;
+
+    const player = new (window as any).YT.Player(`youtube-player-${index}`, {
+      videoId,
+      playerVars: {
+        controls: 0,
+        modestbranding: 1,
+        rel: 0,
+        showinfo: 0,
+        fs: 0,
+        iv_load_policy: 3,
+        disablekb: 1,
+        playsinline: 1,
+      },
+      events: {
+        onReady: (event: any) => {
+          updateVideoState(index, { 
+            isLoading: false,
+            duration: event.target.getDuration()
+          });
+        },
+        onStateChange: (event: any) => {
+          const isPlaying = event.data === (window as any).YT.PlayerState.PLAYING;
+          updateVideoState(index, { isPlaying });
+        },
+        onError: () => {
+          handleError(index);
+        }
+      }
+    });
+
+    youtubePlayerRefs.current.set(index, player);
+  }, [updateVideoState, handleError]);
 
   // Reset state when video changes
   useEffect(() => {
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    
-    // Only show loading for initial load, never during navigation
-    if (currentIndex === 0 && !isNavigating) {
-    setIsLoading(true);
-    } else {
-      setIsLoading(false); // Ensure no loading state during navigation
+    const currentUrl = urls[currentIndex];
+    if (!currentUrl) return;
+
+    // Initialize video state for current index if not exists
+    if (!videoStates.has(currentIndex)) {
+      updateVideoState(currentIndex, {
+        isLoading: true,
+        hasError: false,
+        errorMessage: "",
+        isPlaying: false,
+        isMuted: false,
+        volume: 100,
+        currentTime: 0,
+        duration: 0,
+        playbackRate: 1,
+      });
     }
-    
-    setHasError(false);
-    setErrorMessage("");
     
     // Clear navigation state after animation completes
     const timer = setTimeout(() => {
       setIsNavigating(false);
     }, 200); // Match animation duration
     
-    if (playerRef.current && isYouTube(url)) {
-      playerRef.current.destroy();
-      playerRef.current = null;
+    // Clean up previous YouTube player if it exists
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex + 1;
+    const prevPlayer = youtubePlayerRefs.current.get(prevIndex);
+    if (prevPlayer && prevPlayer.destroy) {
+      prevPlayer.destroy();
+      youtubePlayerRefs.current.delete(prevIndex);
     }
     
     return () => {
       clearTimeout(timer);
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-      }
       if (animationTimeoutRef.current) {
         clearTimeout(animationTimeoutRef.current);
       }
     };
-  }, [currentIndex, url, isYouTube, isNavigating]);
+  }, [currentIndex, urls, videoStates, updateVideoState]);
 
-  // Aggressive preloading strategy - preload all videos with metadata
+  // Preload videos for better performance
   useEffect(() => {
-    const preloadAllVideos = async () => {
+    const preloadVideos = async () => {
       const newPreloadedVideos = new Set<number>();
       
       for (let i = 0; i < urls.length; i++) {
@@ -233,7 +273,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     };
     
     if (urls.length > 0) {
-      preloadAllVideos();
+      preloadVideos();
     }
     
     // Cleanup function
@@ -257,66 +297,6 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     return '';
   };
 
-  const startProgressTracking = useCallback(() => {
-    if (intervalRef.current) return;
-    // Reduced frequency to 250ms for better performance
-    intervalRef.current = window.setInterval(() => {
-      if (playerRef.current) {
-        setCurrentTime(playerRef.current.getCurrentTime());
-      }
-    }, 250);
-  }, []);
-
-  const stopProgressTracking = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => stopProgressTracking();
-  }, [stopProgressTracking]);
-
-  const togglePlay = useCallback(() => {
-    if (!playerRef.current) return;
-    if (isPlaying) {
-      playerRef.current.pauseVideo();
-    } else {
-      playerRef.current.playVideo();
-    }
-  }, [isPlaying]);
-
-  const toggleMute = useCallback(() => {
-    if (!playerRef.current) return;
-    if (isMuted) {
-      playerRef.current.unMute();
-      setIsMuted(false);
-    } else {
-      playerRef.current.mute();
-      setIsMuted(true);
-    }
-  }, [isMuted]);
-
-  const handleVolumeChange = useCallback((value: number[]) => {
-    if (!playerRef.current) return;
-    const newVolume = value[0];
-    setVolume(newVolume);
-    playerRef.current.setVolume(newVolume);
-    if (newVolume === 0) {
-      setIsMuted(true);
-    } else if (isMuted) {
-      setIsMuted(false);
-    }
-  }, [isMuted]);
-
-  const handleSeek = useCallback((value: number[]) => {
-    if (!playerRef.current) return;
-    const newTime = value[0];
-    playerRef.current.seekTo(newTime, true);
-    setCurrentTime(newTime);
-  }, []);
-
   const toggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
@@ -335,26 +315,20 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   const goToNext = useCallback(() => {
     if (isNavigating || currentIndex >= urls.length - 1) return;
     
-    const nextIndex = currentIndex + 1;
-    
-    // Check if next video is preloaded
-    if (!preloadedVideos.has(nextIndex) && !isYouTube(urls[nextIndex])) {
-      console.log('Next video not preloaded yet, waiting...');
-      return;
+    // Stop current video
+    const currentPlayer = playerRefs.current.get(currentIndex);
+    const currentUrl = urls[currentIndex];
+    if (currentPlayer && !isYouTube(currentUrl)) {
+      currentPlayer.pause();
+      currentPlayer.currentTime = 0;
     }
     
     // Set navigating and slide direction INSTANTLY
     setIsNavigating(true);
     setSlideDirection('left');
     
-    // Stop current video
-    if (playerRef.current && !isYouTube(url)) {
-      playerRef.current.pause();
-      playerRef.current.currentTime = 0;
-    }
-    
-    // Change index immediately with no delay for instant response
-    setCurrentIndex(nextIndex);
+    // Change index immediately - no delays, no checks
+    setCurrentIndex(prev => prev + 1);
     
     // Clear slide animation after CSS transition completes
     if (animationTimeoutRef.current) {
@@ -362,32 +336,27 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 200); // Match animation duration
-  }, [isNavigating, currentIndex, urls.length, url, isYouTube, preloadedVideos, urls]);
+      setIsNavigating(false);
+    }, 200);
+  }, [isNavigating, currentIndex, urls.length, urls, isYouTube]);
 
   const goToPrevious = useCallback(() => {
     if (isNavigating || currentIndex <= 0) return;
     
-    const prevIndex = currentIndex - 1;
-    
-    // Check if previous video is preloaded
-    if (!preloadedVideos.has(prevIndex) && !isYouTube(urls[prevIndex])) {
-      console.log('Previous video not preloaded yet, waiting...');
-      return;
+    // Stop current video
+    const currentPlayer = playerRefs.current.get(currentIndex);
+    const currentUrl = urls[currentIndex];
+    if (currentPlayer && !isYouTube(currentUrl)) {
+      currentPlayer.pause();
+      currentPlayer.currentTime = 0;
     }
     
     // Set navigating and slide direction INSTANTLY
     setIsNavigating(true);
     setSlideDirection('right');
     
-    // Stop current video
-    if (playerRef.current && !isYouTube(url)) {
-      playerRef.current.pause();
-      playerRef.current.currentTime = 0;
-    }
-    
-    // Change index immediately with no delay for instant response
-    setCurrentIndex(prevIndex);
+    // Change index immediately - no delays, no checks
+    setCurrentIndex(prev => prev - 1);
     
     // Clear slide animation after CSS transition completes
     if (animationTimeoutRef.current) {
@@ -395,34 +364,10 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }
     animationTimeoutRef.current = window.setTimeout(() => {
       setSlideDirection(null);
-    }, 200); // Match animation duration
-  }, [isNavigating, currentIndex, url, isYouTube, preloadedVideos, urls]);
+      setIsNavigating(false);
+    }, 200);
+  }, [isNavigating, currentIndex, urls, isYouTube]);
 
-  const skipBackward = useCallback(() => {
-    if (!playerRef.current) return;
-    const newTime = Math.max(0, currentTime - 10);
-    playerRef.current.seekTo(newTime, true);
-    setCurrentTime(newTime);
-  }, [currentTime]);
-
-  const skipForward = useCallback(() => {
-    if (!playerRef.current) return;
-    const newTime = Math.min(duration, currentTime + 10);
-    playerRef.current.seekTo(newTime, true);
-    setCurrentTime(newTime);
-  }, [duration, currentTime]);
-
-  const handlePlaybackRateChange = useCallback((rate: number) => {
-    if (!playerRef.current) return;
-    setPlaybackRate(rate);
-    playerRef.current.setPlaybackRate(rate);
-  }, []);
-
-  const resetVideo = useCallback(() => {
-    if (!playerRef.current) return;
-    playerRef.current.seekTo(0, true);
-    setCurrentTime(0);
-  }, []);
 
   const handleMouseMove = useCallback(() => {
     setShowControls(true);
@@ -443,23 +388,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     }, 1000);
   }, []);
 
-  // Optimized video event handlers
-  const handleLoadStart = useCallback(() => setIsLoading(true), []);
-  const handleCanPlay = useCallback(() => setIsLoading(false), []);
-  const handleTimeUpdate = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
-    setCurrentTime(e.currentTarget.currentTime);
-  }, []);
-  const handleLoadedMetadata = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
-    setDuration(e.currentTarget.duration);
-  }, []);
-  const handlePlay = useCallback(() => setIsPlaying(true), []);
-  const handlePause = useCallback(() => setIsPlaying(false), []);
-  const handleVolumeChangeEvent = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
-    setVolume(e.currentTarget.volume * 100);
-    setIsMuted(e.currentTarget.muted);
-  }, []);
-
-  if (!urls.length || !url) {
+  if (!urls.length) {
     return (
       <div className={`relative w-full aspect-video rounded-xl bg-secondary border border-border flex items-center justify-center ${className}`}>
         <div className="text-center">
@@ -472,139 +401,139 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
 
   return (
     <div className="relative w-full">
-      {/* Video counter and preload status */}
+      {/* Video counter */}
       {urls.length > 1 && (
         <div className="absolute top-4 right-4 z-30 bg-black/70 backdrop-blur-sm px-3 py-1 rounded-full text-sm text-white/90 border border-white/10">
           {currentIndex + 1} / {urls.length}
-          {preloadedVideos.size < urls.length && (
-            <span className="ml-2 text-xs text-yellow-400">
-              ({preloadedVideos.size}/{urls.length} ready)
-            </span>
-          )}
         </div>
       )}
 
       <div 
         ref={containerRef}
-        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className} ${
-          slideDirection === 'left' ? 'animate-slide-left' : 
-          slideDirection === 'right' ? 'animate-slide-right' : 
-          'animate-fade-in'
-        }`}
+        className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className}`}
         style={{ 
           boxShadow: 'var(--video-shadow)',
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {isLoading && !isNavigating && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-secondary/90 to-secondary/70 backdrop-blur-sm z-10">
-            <div className="relative">
-              {/* Skeleton loader with pulsing animation */}
-              <div className="w-24 h-24 rounded-full bg-primary/20 animate-pulse flex items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-primary/30 animate-pulse flex items-center justify-center">
-                  <Play className="w-8 h-8 text-primary animate-pulse" />
-                </div>
-              </div>
-              {/* Loading text */}
-              <p className="text-center mt-4 text-sm text-muted-foreground animate-pulse">
-                Loading video...
-              </p>
-              {/* Preload progress */}
-              {preloadedVideos.size < urls.length && (
-                <p className="text-center mt-2 text-xs text-yellow-400">
-                  Preloading videos... ({preloadedVideos.size}/{urls.length})
-                </p>
-              )}
-            </div>
+        {/* Instagram-style carousel - all videos rendered simultaneously */}
+        <div className="relative w-full h-full">
+          {urls.map((url, index) => {
+            const videoState = getVideoState(index);
+            const isActive = index === currentIndex;
+            const isYouTubeVideo = isYouTube(url);
+            
+            return (
+              <div
+                key={index}
+                className={`absolute inset-0 w-full h-full transition-transform duration-200 ease-out ${
+                  isActive ? 'translate-x-0' : 
+                  index < currentIndex ? '-translate-x-full' : 
+                  'translate-x-full'
+                }`}
+                style={{
+                  zIndex: isActive ? 10 : 5,
+                }}
+              >
+                {/* Loading state */}
+                {videoState.isLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-secondary/90 to-secondary/70 backdrop-blur-sm z-20">
+                    <div className="relative">
+                      <div className="w-24 h-24 rounded-full bg-primary/20 animate-pulse flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-primary/30 animate-pulse flex items-center justify-center">
+                          <Play className="w-8 h-8 text-primary animate-pulse" />
+                        </div>
+                      </div>
+                      <p className="text-center mt-4 text-sm text-muted-foreground animate-pulse">
+                        Loading video {index + 1}...
+                      </p>
+                    </div>
           </div>
         )}
         
-        {hasError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-secondary z-10">
+                {/* Error state */}
+                {videoState.hasError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-secondary z-20">
             <div className="text-center max-w-md px-4">
               <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-2" />
-              <p className="text-foreground font-medium">Failed to load video</p>
-              <p className="text-sm text-muted-foreground mt-1">{errorMessage}</p>
-              {(errorMessage.includes("CORS") || errorMessage.includes("R2")) && (
-                <div className="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-700">
-                  <p className="text-xs text-yellow-800 dark:text-yellow-200 mb-2">
-                    <strong>CORS Fix Options:</strong>
-                  </p>
-                  <ul className="text-xs text-yellow-800 dark:text-yellow-200 space-y-1">
-                    <li>• Configure CORS headers on your server</li>
-                    <li>• For Cloudflare R2: Add CORS rules in bucket settings</li>
-                    <li>• Try using a proxy server</li>
-                    <li>• Use same-origin video URLs when possible</li>
-                  </ul>
-                </div>
-              )}
+                      <p className="text-foreground font-medium">Failed to load video {index + 1}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{videoState.errorMessage}</p>
             </div>
           </div>
         )}
 
-        {isYouTube(url) ? (
-          <div>
-            <div id="youtube-player" className="w-full h-full pointer-events-none" />
-            
-            {/* Clickable overlay to capture clicks */}
-            <div 
-              className="absolute inset-0 z-10"
-              onClick={togglePlay}
-            />
-            
-            {/* Custom Controls Overlay */}
-            <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-20 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-...
-              </div>
-            </div>
-        ) : (
-          <div>
+                {/* Video content */}
+                {!videoState.hasError && (
+                  <>
+                    {isYouTubeVideo ? (
+                      <div id={`youtube-player-${index}`} className="w-full h-full pointer-events-none" />
+                    ) : (
             <video
-              key={url}
               src={url}
               crossOrigin=""
-              preload="auto"
-              onLoadedData={handleLoad}
-              onError={handleError}
-              onLoadStart={handleLoadStart}
-              onCanPlay={handleCanPlay}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onVolumeChange={handleVolumeChangeEvent}
-              className="w-full h-full object-contain bg-black"
-              style={{
-                opacity: 1, // Always fully visible during navigation
+              preload="metadata"
+                        onLoadedData={() => handleLoad(index)}
+                        onError={(e) => handleError(index, e)}
+                        onTimeUpdate={(e) => {
+                          const video = e.currentTarget;
+                          updateVideoState(index, { 
+                            currentTime: video.currentTime,
+                            duration: video.duration || 0
+                          });
+                        }}
+                        onLoadedMetadata={(e) => {
+                          const video = e.currentTarget;
+                          updateVideoState(index, { 
+                            duration: video.duration,
+                            volume: video.volume * 100,
+                            isMuted: video.muted
+                          });
+                        }}
+                        onPlay={() => updateVideoState(index, { isPlaying: true })}
+                        onPause={() => updateVideoState(index, { isPlaying: false })}
+              onVolumeChange={(e) => {
+                          const video = e.currentTarget;
+                          updateVideoState(index, { 
+                            volume: video.volume * 100,
+                            isMuted: video.muted
+                          });
               }}
-              title={title}
+              className="w-full h-full object-contain bg-black"
+                        title={`${title} - Video ${index + 1}`}
               playsInline
               controls={false}
               ref={(el) => {
                 if (el) {
-                  playerRef.current = el;
+                            playerRefs.current.set(index, el);
                 }
               }}
             >
               Your browser does not support the video tag.
             </video>
+                    )}
             
-            
-            {/* Custom Controls Overlay for regular video */}
-            <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-20 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+                    {/* Controls overlay - only show for active video */}
+                    {isActive && (
+                      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-30 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
               {/* Progress Bar */}
               <div className="mb-3">
                 <Slider
-                  value={[currentTime]}
-                  max={duration}
+                            value={[videoState.currentTime]}
+                            max={videoState.duration}
                   step={0.1}
-                  onValueChange={handleSeek}
+                            onValueChange={(value) => {
+                              const player = playerRefs.current.get(index);
+                              if (player && !isYouTubeVideo) {
+                                player.currentTime = value[0];
+                                updateVideoState(index, { currentTime: value[0] });
+                              }
+                            }}
                   className="cursor-pointer"
                 />
                 <div className="flex justify-between text-xs text-white/80 mt-1">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>{formatTime(duration)}</span>
+                            <span>{formatTime(videoState.currentTime)}</span>
+                            <span>{formatTime(videoState.duration)}</span>
                 </div>
               </div>
 
@@ -615,25 +544,29 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                     size="icon"
                     variant="ghost"
                     onClick={() => {
-                      if (playerRef.current) {
-                        if (isPlaying) {
-                          playerRef.current.pause();
+                                const player = playerRefs.current.get(index);
+                                if (player && !isYouTubeVideo) {
+                                  if (videoState.isPlaying) {
+                                    player.pause();
                         } else {
-                          playerRef.current.play();
+                                    player.play();
                         }
                       }
                     }}
                     className="text-white hover:bg-white/20 hover:text-white"
                   >
-                    {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                              {videoState.isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                   </Button>
 
                   <Button
                     size="icon"
                     variant="ghost"
                     onClick={() => {
-                      if (playerRef.current) {
-                        playerRef.current.currentTime = Math.max(0, currentTime - 10);
+                                const player = playerRefs.current.get(index);
+                                if (player && !isYouTubeVideo) {
+                                  const newTime = Math.max(0, videoState.currentTime - 10);
+                                  player.currentTime = newTime;
+                                  updateVideoState(index, { currentTime: newTime });
                       }
                     }}
                     className="text-white hover:bg-white/20 hover:text-white"
@@ -646,8 +579,11 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                     size="icon"
                     variant="ghost"
                     onClick={() => {
-                      if (playerRef.current) {
-                        playerRef.current.currentTime = Math.min(duration, currentTime + 10);
+                                const player = playerRefs.current.get(index);
+                                if (player && !isYouTubeVideo) {
+                                  const newTime = Math.min(videoState.duration, videoState.currentTime + 10);
+                                  player.currentTime = newTime;
+                                  updateVideoState(index, { currentTime: newTime });
                       }
                     }}
                     className="text-white hover:bg-white/20 hover:text-white"
@@ -660,8 +596,10 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                     size="icon"
                     variant="ghost"
                     onClick={() => {
-                      if (playerRef.current) {
-                        playerRef.current.currentTime = 0;
+                                const player = playerRefs.current.get(index);
+                                if (player && !isYouTubeVideo) {
+                                  player.currentTime = 0;
+                                  updateVideoState(index, { currentTime: 0 });
                       }
                     }}
                     className="text-white hover:bg-white/20 hover:text-white"
@@ -675,22 +613,26 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                       size="icon"
                       variant="ghost"
                       onClick={() => {
-                        if (playerRef.current) {
-                          playerRef.current.muted = !isMuted;
+                                  const player = playerRefs.current.get(index);
+                                  if (player && !isYouTubeVideo) {
+                                    player.muted = !videoState.isMuted;
+                                    updateVideoState(index, { isMuted: !videoState.isMuted });
                         }
                       }}
                       className="text-white hover:bg-white/20 hover:text-white"
                     >
-                      {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                                {videoState.isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                     </Button>
                     <div className="w-24">
                       <Slider
-                        value={[volume]}
+                                  value={[videoState.volume]}
                         max={100}
                         step={1}
                         onValueChange={(value) => {
-                          if (playerRef.current) {
-                            playerRef.current.volume = value[0] / 100;
+                                    const player = playerRefs.current.get(index);
+                                    if (player && !isYouTubeVideo) {
+                                      player.volume = value[0] / 100;
+                                      updateVideoState(index, { volume: value[0] });
                           }
                         }}
                         className="cursor-pointer"
@@ -703,11 +645,13 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                   <div className="flex items-center gap-1">
                     <span className="text-white/80 text-sm">Speed:</span>
                     <select
-                      value={playbackRate}
+                                value={videoState.playbackRate}
                       onChange={(e) => {
-                        if (playerRef.current) {
-                          playerRef.current.playbackRate = parseFloat(e.target.value);
-                          setPlaybackRate(parseFloat(e.target.value));
+                                  const player = playerRefs.current.get(index);
+                                  if (player && !isYouTubeVideo) {
+                                    const rate = parseFloat(e.target.value);
+                                    player.playbackRate = rate;
+                                    updateVideoState(index, { playbackRate: rate });
                         }
                       }}
                       className="bg-black/50 text-white text-sm rounded px-2 py-1 border border-white/20"
@@ -732,8 +676,13 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                 </div>
               </div>
             </div>
-          </div>
+                    )}
+          </>
         )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Navigation arrows */}
