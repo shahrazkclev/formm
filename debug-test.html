@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Navigation Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .video-container { 
+            position: relative; 
+            width: 100%; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            border: 2px solid #ccc; 
+            border-radius: 8px; 
+            overflow: hidden;
+        }
+        .video-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+        .video-slide.active { transform: translateX(0); z-index: 10; }
+        .video-slide.prev { transform: translateX(-100%); z-index: 5; }
+        .video-slide.next { transform: translateX(100%); z-index: 5; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        .controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .nav-buttons {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+        .nav-buttons:hover { background: rgba(0,0,0,0.9); }
+        .prev-btn { left: 10px; }
+        .next-btn { right: 10px; }
+        .counter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Video Navigation Debug Test</h1>
+    <p>This is a simple test to check if video navigation works without React complexity.</p>
+    
+    <div class="video-container" style="height: 400px;">
+        <div class="counter" id="counter">1 / 3</div>
+        
+        <div class="video-slide active" id="slide-0">
+            <video controls>
+                <source src="https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        
+        <div class="video-slide next" id="slide-1">
+            <video controls>
+                <source src="https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_2mb.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        
+        <div class="video-slide next" id="slide-2">
+            <video controls>
+                <source src="https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_5mb.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        
+        <button class="nav-buttons prev-btn" onclick="prevVideo()">‹</button>
+        <button class="nav-buttons next-btn" onclick="nextVideo()">›</button>
+        
+        <div class="controls">
+            <div>Current: <span id="current-index">0</span></div>
+            <div>Total: <span id="total-videos">3</span></div>
+            <div>Status: <span id="status">Ready</span></div>
+        </div>
+    </div>
+
+    <script>
+        let currentIndex = 0;
+        const totalVideos = 3;
+        
+        function updateDisplay() {
+            document.getElementById('current-index').textContent = currentIndex;
+            document.getElementById('counter').textContent = `${currentIndex + 1} / ${totalVideos}`;
+            
+            // Update slide positions
+            for (let i = 0; i < totalVideos; i++) {
+                const slide = document.getElementById(`slide-${i}`);
+                slide.className = 'video-slide';
+                
+                if (i === currentIndex) {
+                    slide.classList.add('active');
+                } else if (i < currentIndex) {
+                    slide.classList.add('prev');
+                } else {
+                    slide.classList.add('next');
+                }
+            }
+        }
+        
+        function prevVideo() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateDisplay();
+                document.getElementById('status').textContent = 'Previous video loaded';
+            }
+        }
+        
+        function nextVideo() {
+            if (currentIndex < totalVideos - 1) {
+                currentIndex++;
+                updateDisplay();
+                document.getElementById('status').textContent = 'Next video loaded';
+            }
+        }
+        
+        // Initialize
+        updateDisplay();
+        document.getElementById('status').textContent = 'Test ready - try navigation buttons';
+    </script>
+</body>
+</html>
