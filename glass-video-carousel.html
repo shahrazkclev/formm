@@ -39,41 +39,75 @@
             cursor: pointer;
         }
 
-        .controls-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 24px;
-            pointer-events: none;
-        }
-
         .controls-panel {
+            margin-top: 16px;
             backdrop-filter: blur(8px);
             background: rgba(0, 0, 0, 0.2); 
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.1); 
-            padding: 10px;
-            pointer-events: auto;
+            padding: 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
         .controls-inner {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
+            gap: 12px;
         }
 
-        .controls-left {
+        .thumbnail-carousel {
             display: flex;
             align-items: center;
             gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding: 4px 0;
         }
 
-        .controls-right {
+        .thumbnail-carousel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .thumbnail-item {
+            position: relative;
+            flex-shrink: 0;
+            width: 50px;
+            height: 35px;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .thumbnail-item:hover {
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .thumbnail-item.active {
+            border-color: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .thumbnail-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .thumbnail-loading {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
             display: flex;
-            align-items: center; 
-            gap: 6px;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
         }
 
         .btn {
@@ -214,59 +248,41 @@
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="loader"></div>
             </div>
-            
-            <div class="controls-overlay">
-                <div class="controls-panel">
-                    <div class="controls-inner">
-                        <div class="controls-left">
-                            <button class="btn btn-play" id="playBtn">
-                                <svg id="playIcon" viewBox="0 0 24 24">
-                                    <polygon points="10 8 16 12 10 16 10 8"></polygon>
-                                </svg>
-                                <svg id="pauseIcon" viewBox="0 0 24 24">
-                                    <line x1="10" y1="8" x2="10" y2="16"></line>
-                                    <line x1="14" y1="8" x2="14" y2="16"></line>
-                                </svg>
-                            </button>
-                            
-                            <button class="btn btn-small" id="muteBtn">
-                                <svg id="muteIcon" viewBox="0 0 24 24">
-                                    <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
-                                    <line x1="23" y1="9" x2="17" y2="15"></line>
-                                    <line x1="17" y1="9" x2="23" y2="15"></line>
-                                </svg>
-                                <svg id="volumeIcon" style="display: none;" viewBox="0 0 24 24">
-                                    <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
-                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div class="controls-right">
-                            <button class="btn btn-small" id="prevBtn">
-                                <svg>
-                                    <polyline points="15 18 9 12 15 6"></polyline>
-                                </svg>
-                            </button>
-                            
-                            <span class="counter" id="counter">1 / 10</span>
-                            
-                            <button class="btn btn-small" id="nextBtn">
-                                <svg>
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
         
+        <div class="controls-panel">
+            <div class="controls-inner">
+                <button class="btn btn-small" id="prevBtn">
+                    <svg>
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                
+                <div class="thumbnail-carousel" id="thumbnailCarousel">
+                    <!-- Thumbnails will be dynamically generated here -->
+                </div>
+                
+                <button class="btn btn-small" id="nextBtn">
+                    <svg>
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
         var vids = [
-            {streamId: "07356f8c62c8bb0c72bfd711f4d65dce", name: "array1.mp4"}
+            {streamId: "07356f8c62c8bb0c72bfd711f4d65dce", name: "array1.mp4"},
+            {streamId: "1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p", name: "bubble 2 video.mp4"},
+            {streamId: "2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q", name: "clever mosic.mp4"},
+            {streamId: "3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r", name: "cloth video.mp4"},
+            {streamId: "4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s", name: "cover video.mp4"},
+            {streamId: "5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t", name: "handmade jumpin.mp4"},
+            {streamId: "6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u", name: "ice crack.mp4"},
+            {streamId: "7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v", name: "jbl.mp4"},
+            {streamId: "8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w", name: "motion line.mp4"},
+            {streamId: "9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x", name: "popups.mp4"}
         ];
 
         var currentIndex = 0;
@@ -280,7 +296,7 @@
         var muteBtn = document.getElementById('muteBtn');
         var prevBtn = document.getElementById('prevBtn');
         var nextBtn = document.getElementById('nextBtn');
-        var counter = document.getElementById('counter');
+        var thumbnailCarousel = document.getElementById('thumbnailCarousel');
         var playIcon = document.getElementById('playIcon');
         var pauseIcon = document.getElementById('pauseIcon');
         var muteIcon = document.getElementById('muteIcon');
@@ -305,8 +321,72 @@
         }
 
         function buildStreamUrl(streamId) {
-            // Use iframe URL with minimal controls
-            return `https://${streamDomain}/${streamId}/iframe?controls=true&autoplay=false&muted=true`;
+            // Use Cloudflare Stream iframe with their optimized player
+            return `https://${streamDomain}/${streamId}/iframe?preload=true&poster=https%3A%2F%2F${streamDomain}%2F${streamId}%2Fthumbnails%2Fthumbnail.jpg%3Ftime%3D%26height%3D600`;
+        }
+
+        function buildThumbnailUrl(streamId) {
+            // Build thumbnail URL for lazy loading
+            return `https://${streamDomain}/${streamId}/thumbnails/thumbnail.jpg?time=&height=120`;
+        }
+
+        function createThumbnailCarousel() {
+            thumbnailCarousel.innerHTML = '';
+            
+            vids.forEach(function(vid, index) {
+                var thumbnailItem = document.createElement('div');
+                thumbnailItem.className = 'thumbnail-item';
+                thumbnailItem.dataset.index = index;
+                
+                if (index === currentIndex) {
+                    thumbnailItem.classList.add('active');
+                }
+                
+                // Create loading placeholder
+                var loadingDiv = document.createElement('div');
+                loadingDiv.className = 'thumbnail-loading';
+                loadingDiv.textContent = '...';
+                thumbnailItem.appendChild(loadingDiv);
+                
+                // Lazy load the actual thumbnail
+                var img = new Image();
+                img.className = 'thumbnail-img';
+                img.loading = 'lazy';
+                img.onload = function() {
+                    loadingDiv.remove();
+                    thumbnailItem.appendChild(img);
+                };
+                img.onerror = function() {
+                    loadingDiv.textContent = '?';
+                };
+                img.src = buildThumbnailUrl(vid.streamId);
+                
+                // Add click handler
+                thumbnailItem.addEventListener('click', function() {
+                    jumpToVideo(index);
+                });
+                
+                thumbnailCarousel.appendChild(thumbnailItem);
+            });
+        }
+
+        function updateThumbnailCarousel() {
+            var thumbnails = thumbnailCarousel.querySelectorAll('.thumbnail-item');
+            thumbnails.forEach(function(thumb, index) {
+                if (index === currentIndex) {
+                    thumb.classList.add('active');
+                } else {
+                    thumb.classList.remove('active');
+                }
+            });
+        }
+
+        function jumpToVideo(index) {
+            if (index >= 0 && index < vids.length) {
+                currentIndex = index;
+                loadVideo(currentIndex);
+                updateThumbnailCarousel();
+            }
         }
 
         function showLoading() {
@@ -325,18 +405,18 @@
             var streamUrl = buildStreamUrl(streamId);
             console.log('Loading video:', streamUrl);
             streamPlayer.src = streamUrl;
-            counter.textContent = (index + 1) + ' / ' + vids.length;
             
+            updateThumbnailCarousel();
             preloadNearbyVideos(index);
         }
 
         streamPlayer.addEventListener('load', function() {
-            console.log('Iframe loaded');
+            console.log('Stream iframe loaded');
             hideLoading();
         });
 
         streamPlayer.addEventListener('error', function(e) {
-            console.log('Iframe error:', e);
+            console.log('Stream iframe error:', e);
             hideLoading();
         });
 
@@ -375,6 +455,9 @@
         nextBtn.addEventListener('click', nextVideo);
         streamPlayer.addEventListener('click', togglePlay);
 
+        // Initialize thumbnail carousel
+        createThumbnailCarousel();
+        
         // Test iframe element
         console.log('Testing iframe element...');
         console.log('Iframe element:', streamPlayer);

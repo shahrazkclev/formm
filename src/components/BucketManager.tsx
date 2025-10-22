@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -126,12 +126,7 @@ export default function BucketManager() {
     }
   };
 
-  // Auto-fetch videos on component load
-  useEffect(() => {
-    fetchVideos();
-  }, []);
-
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch(`${STREAM_API_BASE}`, {
@@ -149,7 +144,16 @@ export default function BucketManager() {
       const streamVideos = data.result || [];
       
       // Transform Stream videos to match our VideoFile interface
-      const transformedVideos = streamVideos.map((video: any) => ({
+      const transformedVideos = streamVideos.map((video: {
+        uid: string;
+        size?: number;
+        created?: string;
+        thumbnail?: string;
+        meta?: { name?: string };
+        filename?: string;
+        status?: string;
+        duration?: number;
+      }) => ({
         key: video.uid,
         url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${video.uid}/iframe`,
         size: video.size || 0,
@@ -169,7 +173,12 @@ export default function BucketManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [STREAM_API_BASE, STREAM_API_TOKEN, STREAM_CUSTOMER_CODE]);
+
+  // Auto-fetch videos on component load
+  useEffect(() => {
+    fetchVideos();
+  }, [fetchVideos]);
 
   const uploadVideo = async () => {
     if (!uploadFile) return;
@@ -583,25 +592,25 @@ export default function BucketManager() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
       <div className="max-w-6xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="text-center space-y-4 py-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-500 to-amber-600 bg-clip-text text-transparent">
             Video Snippet Maker
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-orange-700/70 max-w-2xl mx-auto">
             Upload videos to Cloudflare Stream, customize the player, and generate clean HTML snippets for your website
           </p>
         </div>
 
       {/* Cloudflare Stream Status */}
-      <Card className="border-2 border-primary/20 shadow-lg backdrop-blur-sm bg-card/80">
+      <Card className="border-2 border-orange-200/50 shadow-xl backdrop-blur-sm bg-white/90">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-orange-800">
             <div className={`w-3 h-3 rounded-full ${
               videos.length > 0 ? 'bg-green-500' : 
-              loading ? 'bg-blue-500 animate-pulse' : 
+              loading ? 'bg-orange-500 animate-pulse' : 
               'bg-gray-400'
             }`}></div>
             Cloudflare Stream Status
@@ -609,19 +618,23 @@ export default function BucketManager() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
-            <Button onClick={fetchVideos} disabled={loading} className="flex-1">
+            <Button 
+              onClick={fetchVideos} 
+              disabled={loading} 
+              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white border-0"
+            >
               {loading ? 'Loading...' : 'Refresh Videos'}
             </Button>
           </div>
           
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">
+              <p className="font-medium text-orange-800">
                 {videos.length > 0 ? `${videos.length} videos found in Stream` : 
                  loading ? 'Loading...' : 
                  'No videos found'}
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-orange-600/70">
                 Account: {STREAM_ACCOUNT_ID}
               </p>
             </div>
@@ -630,119 +643,111 @@ export default function BucketManager() {
                 console.log('Generate HTML button clicked!');
                 generateCodeSnippet();
               }}
-              style={{
-                backgroundColor: '#16a34a',
-                color: 'white',
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
+              className="group relative bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 hover:shadow-lg active:scale-95"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7,10 12,15 17,10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              Generate HTML Code
+              <span className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transition-transform duration-300 group-hover:rotate-12">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7,10 12,15 17,10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Generate HTML Code
+              </span>
+              <div className="absolute inset-0 bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </button>
           </div>
         </CardContent>
       </Card>
 
       <Tabs defaultValue="customize" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="customize">Customize Snippet</TabsTrigger>
-          <TabsTrigger value="videos">Videos ({videos.length})</TabsTrigger>
-          <TabsTrigger value="upload">Upload</TabsTrigger>
+        <TabsList className="bg-white/80 border border-orange-200/50 shadow-lg">
+          <TabsTrigger value="customize" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-orange-700">Customize Snippet</TabsTrigger>
+          <TabsTrigger value="videos" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-orange-700">Videos ({videos.length})</TabsTrigger>
+          <TabsTrigger value="upload" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-orange-700">Upload</TabsTrigger>
         </TabsList>
 
         {/* Customize Tab */}
         <TabsContent value="customize" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Settings Panel */}
-            <Card>
+            <Card className="bg-white/90 border-orange-200/50 shadow-xl">
               <CardHeader>
-                <CardTitle>Player Settings</CardTitle>
+                <CardTitle className="text-orange-800">Player Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-3">
-                  <Label className="text-sm font-semibold">Theme Presets</Label>
+                  <Label className="text-sm font-semibold text-orange-700">Theme Presets</Label>
                   <div className="grid grid-cols-3 gap-2">
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('dark')}>Dark</Button>
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('light')}>Light</Button>
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('blue')}>Blue</Button>
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('purple')}>Purple</Button>
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('gradient')}>Gradient</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('dark')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Dark</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('light')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Light</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('blue')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Blue</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('purple')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Purple</Button>
+                    <Button size="sm" variant="outline" onClick={() => applyTheme('gradient')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Gradient</Button>
                   </div>
                 </div>
 
                 <div>
-                  <Label>Max Width: {maxWidth}px</Label>
+                  <Label className="text-orange-700">Max Width: {maxWidth}px</Label>
                   <Slider
                     value={[maxWidth]}
                     onValueChange={(val) => setMaxWidth(val[0])}
                     min={300}
                     max={1200}
                     step={50}
-                    className="mt-2"
+                    className="mt-2 [&_[role=slider]]:bg-orange-500"
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Aspect Ratio: {aspectWidth}:{aspectHeight} ({(aspectWidth/aspectHeight).toFixed(2)})</Label>
+                  <Label className="text-orange-700">Aspect Ratio: {aspectWidth}:{aspectHeight} ({(aspectWidth/aspectHeight).toFixed(2)})</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Width</Label>
+                      <Label className="text-xs text-orange-600">Width</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={aspectWidth}
                         onChange={(e) => setAspectWidth(parseFloat(e.target.value) || 16)}
-                        className="mt-1"
+                        className="mt-1 border-orange-200 focus:border-orange-500"
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground">Height</Label>
+                      <Label className="text-xs text-orange-600">Height</Label>
                       <Input
                         type="number"
                         step="0.1"
                         value={aspectHeight}
                         onChange={(e) => setAspectHeight(parseFloat(e.target.value) || 9)}
-                        className="mt-1"
+                        className="mt-1 border-orange-200 focus:border-orange-500"
                       />
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(16); setAspectHeight(9); }}>16:9</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(4); setAspectHeight(3); }}>4:3</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(1); setAspectHeight(1); }}>1:1</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(21); setAspectHeight(9); }}>21:9</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(16); setAspectHeight(9); }} className="border-orange-200 text-orange-700 hover:bg-orange-50">16:9</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(4); setAspectHeight(3); }} className="border-orange-200 text-orange-700 hover:bg-orange-50">4:3</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(1); setAspectHeight(1); }} className="border-orange-200 text-orange-700 hover:bg-orange-50">1:1</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(21); setAspectHeight(9); }} className="border-orange-200 text-orange-700 hover:bg-orange-50">21:9</Button>
                   </div>
                 </div>
 
                 <div>
-                  <Label>Border Radius: {borderRadius}px</Label>
+                  <Label className="text-orange-700">Border Radius: {borderRadius}px</Label>
                   <Slider
                     value={[borderRadius]}
                     onValueChange={(val) => setBorderRadius(val[0])}
                     min={0}
                     max={30}
                     step={2}
-                    className="mt-2"
+                    className="mt-2 [&_[role=slider]]:bg-orange-500"
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Label>Show Navigation Arrows</Label>
+                  <Label className="text-orange-700">Show Navigation Arrows</Label>
                   <Switch
                     checked={showArrows}
                     onCheckedChange={setShowArrows}
+                    className="data-[state=checked]:bg-orange-500"
                   />
                 </div>
 
@@ -868,20 +873,20 @@ export default function BucketManager() {
 
                 <Button 
                   onClick={generateCodeSnippet}
-                  className="w-full"
+                  className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95"
                   size="lg"
                   disabled={videos.length === 0}
                 >
-                  <Copy className="w-4 h-4 mr-2" />
+                  <Copy className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:rotate-12" />
                   Generate & Copy HTML Snippet
                 </Button>
               </CardContent>
             </Card>
 
             {/* Live Preview */}
-            <Card>
+            <Card className="bg-white/90 border-orange-200/50 shadow-xl">
               <CardHeader>
-                <CardTitle>Live Preview</CardTitle>
+                <CardTitle className="text-orange-800">Live Preview</CardTitle>
               </CardHeader>
               <CardContent>
                 {videos.length > 0 ? (
@@ -964,10 +969,10 @@ export default function BucketManager() {
         {/* Videos Tab */}
         <TabsContent value="videos" className="space-y-4">
           {videos.length === 0 ? (
-            <Card>
+            <Card className="bg-white/90 border-orange-200/50 shadow-xl">
               <CardContent className="text-center py-12">
-                <p className="text-muted-foreground">No videos found in your bucket</p>
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-orange-700">No videos found in your Stream</p>
+                <p className="text-sm text-orange-600/70 mt-2">
                   Upload some videos to get started
                 </p>
               </CardContent>
@@ -975,7 +980,7 @@ export default function BucketManager() {
           ) : (
             <>
               {/* Bulk Delete Controls */}
-              <Card>
+              <Card className="bg-white/90 border-orange-200/50 shadow-xl">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
@@ -988,7 +993,7 @@ export default function BucketManager() {
                           }
                         }}
                       />
-                      <Label className="text-sm font-medium">
+                      <Label className="text-sm font-medium text-orange-700">
                         Bulk Delete Mode {bulkDeleteMode && selectedVideos.size > 0 && `(${selectedVideos.size} selected)`}
                       </Label>
                     </div>
@@ -999,6 +1004,7 @@ export default function BucketManager() {
                           size="sm"
                           variant="outline"
                           onClick={selectAllVideos}
+                          className="border-orange-200 text-orange-700 hover:bg-orange-50"
                         >
                           Select All
                         </Button>
@@ -1006,6 +1012,7 @@ export default function BucketManager() {
                           size="sm"
                           variant="outline"
                           onClick={deselectAllVideos}
+                          className="border-orange-200 text-orange-700 hover:bg-orange-50"
                         >
                           Deselect All
                         </Button>
@@ -1014,6 +1021,7 @@ export default function BucketManager() {
                           variant="destructive"
                           onClick={deleteBulkVideos}
                           disabled={selectedVideos.size === 0 || deleting}
+                          className="bg-red-500 hover:bg-red-600"
                         >
                           <Trash2 className="w-4 h-4 mr-2" />
                           {deleting ? 'Deleting...' : `Delete ${selectedVideos.size} Video(s)`}
@@ -1029,7 +1037,7 @@ export default function BucketManager() {
           {videos.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {videos.map((video, index) => (
-                <Card key={video.key} className={`overflow-hidden ${bulkDeleteMode && selectedVideos.has(video.key) ? 'ring-2 ring-primary' : ''}`}>
+                <Card key={video.key} className={`overflow-hidden bg-white/90 border-orange-200/50 shadow-xl ${bulkDeleteMode && selectedVideos.has(video.key) ? 'ring-2 ring-orange-500' : ''}`}>
                   <div className="aspect-video bg-muted relative">
                     {video.thumbnail ? (
                       <img 
@@ -1229,9 +1237,9 @@ export default function BucketManager() {
 
         {/* Upload Tab */}
         <TabsContent value="upload" className="space-y-4">
-          <Card>
+          <Card className="bg-white/90 border-orange-200/50 shadow-xl">
             <CardHeader>
-              <CardTitle>Upload Video</CardTitle>
+              <CardTitle className="text-orange-800">Upload Video</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -1269,7 +1277,7 @@ export default function BucketManager() {
               <Button 
                 onClick={uploadVideo} 
                 disabled={!uploadFile || uploading}
-                className="w-full"
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 {uploading ? `Uploading... ${uploadProgress}%` : 'Upload Video'}

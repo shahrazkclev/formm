@@ -28,8 +28,8 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     playbackRate: number;
   }>>(new Map());
   
-  const playerRefs = useRef<Map<number, HTMLVideoElement | any>>(new Map());
-  const youtubePlayerRefs = useRef<Map<number, any>>(new Map());
+  const playerRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
+  const youtubePlayerRefs = useRef<Map<number, unknown>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRefs = useRef<Map<number, number>>(new Map());
   const hideControlsTimeout = useRef<number | null>(null);
