@@ -61,9 +61,13 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     });
   }, [getVideoState]);
 
-  // Memoize YouTube detection to prevent recalculation
+  // Memoize video type detection to prevent recalculation
   const isYouTube = useCallback((url: string) => {
     return url.includes('youtube.com') || url.includes('youtu.be');
+  }, []);
+
+  const isCloudflareStream = useCallback((url: string) => {
+    return url.includes('cloudflarestream.com');
   }, []);
 
   // Memoize YouTube URL conversion
@@ -88,7 +92,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
 
   const handleError = useCallback((index: number, event?: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     const url = urls[index];
-    const isR2Url = url.includes('r2.dev') || url.includes('cloudflare');
+    const isStreamUrl = url.includes('cloudflarestream.com');
     const isExternalUrl = !url.startsWith(window.location.origin);
     
     let errorMessage = "Failed to load video.";
@@ -98,26 +102,26 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
       if (error) {
         switch (error.code) {
           case 1: // MEDIA_ERR_ABORTED
-            errorMessage = isR2Url || isExternalUrl ? 
-              "Video loading was aborted. This is likely a CORS issue. Try removing crossOrigin attribute or configure CORS on your server." : 
+            errorMessage = isStreamUrl ? 
+              "Video loading was aborted. Cloudflare Stream video may be processing or unavailable." : 
               "Video loading was aborted.";
             break;
           case 2: // MEDIA_ERR_NETWORK
-            errorMessage = isR2Url || isExternalUrl ? 
-              "Network error occurred while loading video. This is likely a CORS issue. Check your server's CORS configuration." : 
+            errorMessage = isStreamUrl ? 
+              "Network error occurred while loading Cloudflare Stream video. Check your internet connection." : 
               "Network error occurred while loading video. Check your internet connection.";
             break;
           case 3: // MEDIA_ERR_DECODE
             errorMessage = "Video format not supported or corrupted.";
             break;
           case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-            errorMessage = isR2Url || isExternalUrl ? 
-              "Video source not supported. This is likely a CORS issue. Configure CORS headers on your server to allow video access." : 
+            errorMessage = isStreamUrl ? 
+              "Cloudflare Stream video not available. The video may still be processing." : 
               "Video source not supported. Check the URL and file format.";
             break;
           default:
-            errorMessage = isR2Url || isExternalUrl ? 
-              "Unknown error occurred while loading video. This might be a CORS issue. Check your server's CORS configuration." : 
+            errorMessage = isStreamUrl ? 
+              "Unknown error occurred while loading Cloudflare Stream video." : 
               "Unknown error occurred while loading video.";
         }
       }
@@ -237,7 +241,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
       const newPreloadedVideos = new Set<number>();
       
       for (let i = 0; i < urls.length; i++) {
-        if (isYouTube(urls[i])) {
+        if (isYouTube(urls[i]) || isCloudflareStream(urls[i])) {
           newPreloadedVideos.add(i);
           continue;
         }
@@ -318,7 +322,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     // Stop current video
     const currentPlayer = playerRefs.current.get(currentIndex);
     const currentUrl = urls[currentIndex];
-    if (currentPlayer && !isYouTube(currentUrl)) {
+    if (currentPlayer && !isYouTube(currentUrl) && !isCloudflareStream(currentUrl)) {
       currentPlayer.pause();
       currentPlayer.currentTime = 0;
     }
@@ -338,7 +342,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
       setSlideDirection(null);
       setIsNavigating(false);
     }, 200);
-  }, [isNavigating, currentIndex, urls.length, urls, isYouTube]);
+  }, [isNavigating, currentIndex, urls.length, urls, isYouTube, isCloudflareStream]);
 
   const goToPrevious = useCallback(() => {
     if (isNavigating || currentIndex <= 0) return;
@@ -346,7 +350,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     // Stop current video
     const currentPlayer = playerRefs.current.get(currentIndex);
     const currentUrl = urls[currentIndex];
-    if (currentPlayer && !isYouTube(currentUrl)) {
+    if (currentPlayer && !isYouTube(currentUrl) && !isCloudflareStream(currentUrl)) {
       currentPlayer.pause();
       currentPlayer.currentTime = 0;
     }
@@ -366,7 +370,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
       setSlideDirection(null);
       setIsNavigating(false);
     }, 200);
-  }, [isNavigating, currentIndex, urls, isYouTube]);
+  }, [isNavigating, currentIndex, urls, isYouTube, isCloudflareStream]);
 
 
   const handleMouseMove = useCallback(() => {
@@ -468,6 +472,16 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
                   <>
                     {isYouTubeVideo ? (
                       <div id={`youtube-player-${index}`} className="w-full h-full pointer-events-none" />
+                    ) : isCloudflareStream(url) ? (
+                      <iframe
+                        src={url}
+                        className="w-full h-full border-0"
+                        title={`${title} - Video ${index + 1}`}
+                        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        onLoad={() => handleLoad(index)}
+                        onError={() => handleError(index)}
+                      />
                     ) : (
             <video
               src={url}
@@ -513,8 +527,8 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
             </video>
                     )}
             
-                    {/* Controls overlay - only show for active video */}
-                    {isActive && (
+                    {/* Controls overlay - only show for active video and non-iframe videos */}
+                    {isActive && !isCloudflareStream(url) && (
                       <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 transition-opacity duration-300 z-30 pointer-events-auto ${showControls ? 'opacity-100' : 'opacity-0'}`}>
               {/* Progress Bar */}
               <div className="mb-3">

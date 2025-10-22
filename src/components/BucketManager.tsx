@@ -31,6 +31,10 @@ interface VideoFile {
   size: number;
   lastModified: string;
   thumbnail?: string;
+  uid: string;
+  name: string;
+  status?: string;
+  duration?: number;
 }
 
 interface PlayerSettings {
@@ -47,14 +51,18 @@ interface PlayerSettings {
 }
 
 export default function BucketManager() {
-  const [bucketUrl, setBucketUrl] = useState('https://vid-just.cleverpoly-store.workers.dev');
+  // Cloudflare Stream configuration
+  const STREAM_API_TOKEN = 'nz3V5siUHVPhnjJxYm_cHdWiV-kNCRC-9gYsl1DQ';
+  const STREAM_ACCOUNT_ID = 'b5f7bbc74ed9bf4c44b19d1f3b937e22';
+  const STREAM_CUSTOMER_CODE = 'aanhjdlw75bwi5za';
+  const STREAM_API_BASE = `https://api.cloudflare.com/client/v4/accounts/${STREAM_ACCOUNT_ID}/stream`;
+  
   const [videos, setVideos] = useState<VideoFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedVideo, setSelectedVideo] = useState<VideoFile | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   
   // Delete states
@@ -120,23 +128,43 @@ export default function BucketManager() {
 
   // Auto-fetch videos on component load
   useEffect(() => {
-    if (bucketUrl) {
-      fetchVideos();
-    }
-  }, [bucketUrl]);
+    fetchVideos();
+  }, []);
 
   const fetchVideos = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${bucketUrl}/list-videos?t=${Date.now()}`);
+      const response = await fetch(`${STREAM_API_BASE}`, {
+        headers: {
+          'Authorization': `Bearer ${STREAM_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      
       const data = await response.json();
-      setVideos(data.videos || []);
+      const streamVideos = data.result || [];
+      
+      // Transform Stream videos to match our VideoFile interface
+      const transformedVideos = streamVideos.map((video: any) => ({
+        key: video.uid,
+        url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${video.uid}/iframe`,
+        size: video.size || 0,
+        lastModified: video.created || new Date().toISOString(),
+        thumbnail: video.thumbnail || undefined,
+        uid: video.uid,
+        name: video.meta?.name || video.filename || 'Untitled Video',
+        status: video.status,
+        duration: video.duration
+      }));
+      
+      setVideos(transformedVideos);
     } catch (error) {
       console.error('Failed to fetch videos:', error);
-      toast.error('Failed to fetch videos. Check your worker URL.');
+      toast.error('Failed to fetch videos from Cloudflare Stream.');
       setVideos([]);
     } finally {
       setLoading(false);
@@ -149,75 +177,42 @@ export default function BucketManager() {
     setUploading(true);
     setUploadProgress(0);
     
-    return new Promise<void>((resolve, reject) => {
+    try {
       const formData = new FormData();
       formData.append('file', uploadFile);
       
-      const xhr = new XMLHttpRequest();
-      
-      // Track upload progress
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = (e.loaded / e.total) * 100;
-          setUploadProgress(Math.round(percentComplete));
-        }
-      });
-      
-      // Handle completion
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          toast.success('Video uploaded successfully!');
-          setUploadFile(null);
-          setUploadProgress(0);
-          fetchVideos();
-          resolve();
-        } else {
-          toast.error(`Upload failed: ${xhr.statusText}`);
-          reject(new Error(`Upload failed: ${xhr.statusText}`));
-        }
-        setUploading(false);
-      });
-      
-      // Handle errors
-      xhr.addEventListener('error', () => {
-        console.error('Upload failed');
-        toast.error('Failed to upload video');
-        setUploading(false);
-        setUploadProgress(0);
-        reject(new Error('Upload failed'));
-      });
-      
-      // Handle abort
-      xhr.addEventListener('abort', () => {
-        toast.error('Upload cancelled');
-        setUploading(false);
-        setUploadProgress(0);
-        reject(new Error('Upload cancelled'));
-      });
-      
-      xhr.open('POST', `${bucketUrl}/upload`);
-      xhr.send(formData);
-    });
-  };
-
-  const uploadThumbnail = async (videoKey: string, file: File) => {
-    setUploadingThumbnail(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('videoKey', videoKey);
-      
-      const response = await fetch(`${bucketUrl}/upload-thumbnail`, {
+      const response = await fetch(`${STREAM_API_BASE}`, {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Authorization': `Bearer ${STREAM_API_TOKEN}`,
+        },
+        body: formData
       });
       
       if (!response.ok) {
-        throw new Error(`Thumbnail upload failed: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.errors?.[0]?.message || `Upload failed: ${response.statusText}`);
       }
       
-      toast.success('Thumbnail uploaded successfully!');
+      const result = await response.json();
+      toast.success('Video uploaded successfully to Cloudflare Stream!');
+      setUploadFile(null);
+      setUploadProgress(0);
       fetchVideos();
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast.error(`Upload failed: ${error.message}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const uploadThumbnail = async (videoUid: string, file: File) => {
+    setUploadingThumbnail(true);
+    try {
+      // Note: Cloudflare Stream doesn't support custom thumbnails via API
+      // Thumbnails are automatically generated from the video
+      toast.info('Cloudflare Stream automatically generates thumbnails from your videos');
     } catch (error) {
       console.error('Thumbnail upload failed:', error);
       toast.error('Failed to upload thumbnail');
@@ -226,23 +221,28 @@ export default function BucketManager() {
     }
   };
 
-  const deleteVideo = async (videoKey: string) => {
+  const deleteVideo = async (videoUid: string) => {
     setDeleting(true);
     try {
-      const response = await fetch(`${bucketUrl}/delete/${videoKey}`, {
+      const response = await fetch(`${STREAM_API_BASE}/${videoUid}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${STREAM_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       if (!response.ok) {
-        throw new Error(`Delete failed: ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(errorData.errors?.[0]?.message || `Delete failed: ${response.statusText}`);
       }
       
-      toast.success('Video deleted successfully!');
+      toast.success('Video deleted successfully from Cloudflare Stream!');
       setVideoToDelete(null);
       fetchVideos();
     } catch (error) {
       console.error('Delete failed:', error);
-      toast.error('Failed to delete video');
+      toast.error(`Failed to delete video: ${error.message}`);
     } finally {
       setDeleting(false);
     }
@@ -258,10 +258,14 @@ export default function BucketManager() {
     let successCount = 0;
     let failCount = 0;
 
-    for (const videoKey of Array.from(selectedVideos)) {
+    for (const videoUid of Array.from(selectedVideos)) {
       try {
-        const response = await fetch(`${bucketUrl}/delete/${videoKey}`, {
+        const response = await fetch(`${STREAM_API_BASE}/${videoUid}`, {
           method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${STREAM_API_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
         });
         
         if (response.ok) {
@@ -270,7 +274,7 @@ export default function BucketManager() {
           failCount++;
         }
       } catch (error) {
-        console.error(`Failed to delete ${videoKey}:`, error);
+        console.error(`Failed to delete ${videoUid}:`, error);
         failCount++;
       }
     }
@@ -280,7 +284,7 @@ export default function BucketManager() {
     setBulkDeleteMode(false);
 
     if (successCount > 0) {
-      toast.success(`Successfully deleted ${successCount} video(s)`);
+      toast.success(`Successfully deleted ${successCount} video(s) from Cloudflare Stream`);
     }
     if (failCount > 0) {
       toast.error(`Failed to delete ${failCount} video(s)`);
@@ -587,11 +591,11 @@ export default function BucketManager() {
             Video Snippet Maker
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Load videos from your bucket, customize the player, and generate clean HTML snippets for your website
+            Upload videos to Cloudflare Stream, customize the player, and generate clean HTML snippets for your website
           </p>
         </div>
 
-      {/* Connection Status */}
+      {/* Cloudflare Stream Status */}
       <Card className="border-2 border-primary/20 shadow-lg backdrop-blur-sm bg-card/80">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -600,31 +604,25 @@ export default function BucketManager() {
               loading ? 'bg-blue-500 animate-pulse' : 
               'bg-gray-400'
             }`}></div>
-            Connection Status
+            Cloudflare Stream Status
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
-            <Input
-              value={bucketUrl}
-              onChange={(e) => setBucketUrl(e.target.value)}
-              placeholder="Enter your Cloudflare Worker URL"
-              className="flex-1"
-            />
-            <Button onClick={fetchVideos} disabled={loading}>
-              {loading ? 'Loading...' : 'Refresh'}
+            <Button onClick={fetchVideos} disabled={loading} className="flex-1">
+              {loading ? 'Loading...' : 'Refresh Videos'}
             </Button>
           </div>
           
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">
-                {videos.length > 0 ? `${videos.length} videos found` : 
+                {videos.length > 0 ? `${videos.length} videos found in Stream` : 
                  loading ? 'Loading...' : 
                  'No videos found'}
               </p>
               <p className="text-sm text-muted-foreground">
-                Worker: {bucketUrl}
+                Account: {STREAM_ACCOUNT_ID}
               </p>
             </div>
             <button 
@@ -1066,11 +1064,14 @@ export default function BucketManager() {
                   
                   <CardContent className="p-4 space-y-3">
                     <div>
-                      <h3 className="font-medium truncate" title={video.key}>
-                        {video.key}
+                      <h3 className="font-medium truncate" title={video.name}>
+                        {video.name}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {formatFileSize(video.size)}
+                        {formatFileSize(video.size)} • {video.duration ? `${Math.round(video.duration)}s` : 'Unknown duration'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        UID: {video.uid} • Status: {video.status || 'Unknown'}
                       </p>
                     </div>
                     
@@ -1150,20 +1151,20 @@ export default function BucketManager() {
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              uploadThumbnail(video.key, file);
+                              uploadThumbnail(video.uid, file);
                             }
                           }}
                           className="hidden"
-                          id={`thumbnail-${video.key}`}
+                          id={`thumbnail-${video.uid}`}
                         />
                         <Button 
                           size="sm" 
                           variant="outline"
-                          onClick={() => document.getElementById(`thumbnail-${video.key}`)?.click()}
+                          onClick={() => document.getElementById(`thumbnail-${video.uid}`)?.click()}
                           disabled={uploadingThumbnail}
                         >
                           <Image className="w-4 h-4 mr-1" />
-                          {video.thumbnail ? 'Change' : 'Add'} Thumbnail
+                          Auto Thumbnail
                         </Button>
                         <Button 
                           size="sm" 
@@ -1378,7 +1379,7 @@ export default function BucketManager() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => videoToDelete && deleteVideo(videoToDelete.key)}
+              onClick={() => videoToDelete && deleteVideo(videoToDelete.uid)}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

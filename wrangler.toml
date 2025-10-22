@@ -1,16 +1,12 @@
-name = "vid-just"
-main = "cloudflare-worker.js"
+name = "video-anywhere-box"
+main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# R2 Bucket binding - your actual bucket name
-[[r2_buckets]]
-binding = "VIDEO_BUCKET"
-bucket_name = "just-vids"
-preview_bucket_name = "just-vids-preview"
-
-# Environment variables - replace with your actual Cloudflare Account ID
+# Environment variables for Cloudflare Stream
 [vars]
-ACCOUNT_ID = "your-cloudflare-account-id"
+STREAM_API_TOKEN = "nz3V5siUHVPhnjJxYm_cHdWiV-kNCRC-9gYsl1DQ"
+STREAM_ACCOUNT_ID = "b5f7bbc74ed9bf4c44b19d1f3b937e22"
+STREAM_CUSTOMER_CODE = "aanhjdlw75bwi5za"
 
 # Optional: Custom domain
 # routes = [

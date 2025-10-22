@@ -2,7 +2,7 @@
   "name": "video-anywhere-box",
   "private": true,
   "version": "1.0.0",
-  "description": "Universal video carousel with Cloudflare R2 integration and HTML code generation",
+  "description": "Universal video carousel with Cloudflare Stream integration and HTML code generation",
   "type": "module",
   "scripts": {
     "dev": "vite",
