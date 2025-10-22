@@ -87,9 +87,10 @@
         .controls-inner {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             gap: 16px;
             width: 100%;
+            padding: 0 40px;
         }
 
         .thumbnail-carousel {
@@ -103,6 +104,27 @@
             position: relative;
             flex: 1;
             justify-content: center;
+        }
+
+        .thumbnail-carousel::before,
+        .thumbnail-carousel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 20px;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .thumbnail-carousel::before {
+            left: 0;
+            background: linear-gradient(to right, rgba(0, 0, 0, 0.3), transparent);
+        }
+
+        .thumbnail-carousel::after {
+            right: 0;
+            background: linear-gradient(to left, rgba(0, 0, 0, 0.3), transparent);
         }
 
         .thumbnail-carousel::-webkit-scrollbar {
@@ -206,6 +228,10 @@
         .btn-small {
             width: 36px;
             height: 36px;
+        }
+
+        .btn-nav {
+            margin: 0;
         }
 
         .counter {
@@ -323,7 +349,7 @@
             
             <div class="controls-panel">
                 <div class="controls-inner">
-                    <button class="btn btn-small" id="prevBtn">
+                    <button class="btn btn-small btn-nav" id="prevBtn">
                         <svg>
                             <polyline points="15 18 9 12 15 6"></polyline>
                         </svg>
@@ -335,7 +361,7 @@
                         </div>
                     </div>
                     
-                    <button class="btn btn-small" id="nextBtn">
+                    <button class="btn btn-small btn-nav" id="nextBtn">
                         <svg>
                             <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
@@ -395,8 +421,8 @@
         }
 
         function buildThumbnailUrl(streamId) {
-            // Build thumbnail URL for lazy loading
-            return `https://${streamDomain}/${streamId}/thumbnails/thumbnail.jpg?time=&height=120`;
+            // Build thumbnail URL for lazy loading - try different formats
+            return `https://${streamDomain}/${streamId}/thumbnails/thumbnail.jpg?time=0&height=120`;
         }
 
         function createThumbnailCarousel() {
@@ -426,7 +452,19 @@
                     thumbnailItem.appendChild(img);
                 };
                 img.onerror = function() {
-                    loadingDiv.textContent = '?';
+                    // Try alternative thumbnail URL
+                    var altUrl = `https://${streamDomain}/${streamId}/thumbnails/thumbnail.jpg`;
+                    var altImg = new Image();
+                    altImg.className = 'thumbnail-img';
+                    altImg.onload = function() {
+                        loadingDiv.remove();
+                        thumbnailItem.appendChild(altImg);
+                    };
+                    altImg.onerror = function() {
+                        loadingDiv.textContent = '📹';
+                        loadingDiv.style.fontSize = '16px';
+                    };
+                    altImg.src = altUrl;
                 };
                 img.src = buildThumbnailUrl(vid.streamId);
                 

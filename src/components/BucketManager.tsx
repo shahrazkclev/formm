@@ -100,15 +100,15 @@ export default function BucketManager() {
         status?: string;
         duration?: number;
       }) => ({
-        key: video.uid,
+        key: video.uid || `video-${Date.now()}`,
         url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${video.uid}/iframe`,
         size: video.size || 0,
         lastModified: video.created || new Date().toISOString(),
         thumbnail: video.thumbnail || undefined,
-        uid: video.uid,
+        uid: video.uid || `video-${Date.now()}`,
         name: video.meta?.name || video.filename || 'Untitled Video',
-        status: video.status,
-        duration: video.duration
+        status: video.status || 'unknown',
+        duration: video.duration || 0
       }));
       
       setVideos(transformedVideos);
@@ -1022,7 +1022,14 @@ export default function BucketManager() {
           
           {videos.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {videos.map((video, index) => (
+              {videos.map((video, index) => {
+                // Validate video object to prevent React errors
+                if (!video || typeof video !== 'object' || !video.key || !video.uid) {
+                  console.warn('Invalid video object:', video);
+                  return null;
+                }
+                
+                return (
                 <Card key={video.key} className={`overflow-hidden bg-white/90 border-orange-200/50 shadow-xl ${bulkDeleteMode && selectedVideos.has(video.key) ? 'ring-2 ring-orange-500' : ''}`}>
                   <div className="aspect-video bg-muted relative">
                     {video.thumbnail ? (
@@ -1058,14 +1065,14 @@ export default function BucketManager() {
                   
                   <CardContent className="p-4 space-y-3">
                     <div>
-                      <h3 className="font-medium truncate" title={video.name}>
-                        {video.name}
+                      <h3 className="font-medium truncate" title={video.name || 'Untitled Video'}>
+                        {video.name || 'Untitled Video'}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {formatFileSize(video.size)} • {video.duration ? `${Math.round(video.duration)}s` : 'Unknown duration'}
+                        {formatFileSize(video.size || 0)} • {video.duration ? `${Math.round(video.duration)}s` : 'Unknown duration'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        UID: {video.uid} • Status: {video.status || 'Unknown'}
+                        UID: {video.uid || 'Unknown'} • Status: {video.status || 'Unknown'}
                       </p>
                     </div>
                     
@@ -1096,7 +1103,7 @@ export default function BucketManager() {
                       <button 
                         onClick={async () => {
                           try {
-                            await copyToClipboard(video.url);
+                            await copyToClipboard(video.url || '');
                             alert('Video URL copied to clipboard!');
                           } catch (error) {
                             alert('Failed to copy URL');
@@ -1179,7 +1186,8 @@ export default function BucketManager() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
