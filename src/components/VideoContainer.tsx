@@ -3,6 +3,14 @@ import { Play, Pause, Volume2, VolumeX, Maximize, AlertCircle, ChevronLeft, Chev
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 
+interface YouTubePlayer {
+  destroy: () => void;
+  getDuration: () => number;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  getPlayerState: () => number;
+}
+
 interface VideoContainerProps {
   urls: string[];
   title?: string;
@@ -29,7 +37,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
   }>>(new Map());
   
   const playerRefs = useRef<Map<number, HTMLVideoElement>>(new Map());
-  const youtubePlayerRefs = useRef<Map<number, unknown>>(new Map());
+  const youtubePlayerRefs = useRef<Map<number, YouTubePlayer>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRefs = useRef<Map<number, number>>(new Map());
   const hideControlsTimeout = useRef<number | null>(null);
@@ -222,8 +230,12 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
     // Clean up previous YouTube player if it exists
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex + 1;
     const prevPlayer = youtubePlayerRefs.current.get(prevIndex);
-    if (prevPlayer && prevPlayer.destroy) {
-      prevPlayer.destroy();
+    if (prevPlayer) {
+      try {
+        prevPlayer.destroy();
+      } catch (error) {
+        console.warn('Error destroying YouTube player:', error);
+      }
       youtubePlayerRefs.current.delete(prevIndex);
     }
     
