@@ -71,60 +71,6 @@ export default function BucketManager() {
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<Set<string>>(new Set());
   
-  // Player Customization Settings
-  const [maxWidth, setMaxWidth] = useState(600);
-  const [aspectWidth, setAspectWidth] = useState(16);
-  const [aspectHeight, setAspectHeight] = useState(9);
-  const [borderRadius, setBorderRadius] = useState(12);
-  const [showArrows, setShowArrows] = useState(true);
-  const [arrowSize, setArrowSize] = useState(40);
-  const [arrowStyle, setArrowStyle] = useState('chevron'); // chevron, arrow, triangle, circle
-  const [backgroundColor, setBackgroundColor] = useState('#000000');
-  const [playerAccentColor, setPlayerAccentColor] = useState('#3b82f6'); // Blue default
-  const [arrowColor, setArrowColor] = useState('#ffffff');
-  const [arrowBgColor, setArrowBgColor] = useState('rgba(0,0,0,0.5)');
-  
-  // Calculate aspect ratio percentage
-  const aspectRatio = (aspectHeight / aspectWidth) * 100;
-
-  // Arrow icon options
-  const arrowIcons = {
-    chevron: { left: '‹', right: '›' },
-    arrow: { left: '←', right: '→' },
-    triangle: { left: '◀', right: '▶' },
-    circle: { left: '⬅', right: '➡' }
-  };
-
-  // Theme presets
-  const applyTheme = (theme: string) => {
-    switch(theme) {
-      case 'dark':
-        setBackgroundColor('#000000');
-        setArrowColor('#ffffff');
-        setArrowBgColor('rgba(0,0,0,0.7)');
-        break;
-      case 'light':
-        setBackgroundColor('#ffffff');
-        setArrowColor('#000000');
-        setArrowBgColor('rgba(255,255,255,0.9)');
-        break;
-      case 'blue':
-        setBackgroundColor('#1e40af');
-        setArrowColor('#ffffff');
-        setArrowBgColor('rgba(59,130,246,0.8)');
-        break;
-      case 'purple':
-        setBackgroundColor('#7c3aed');
-        setArrowColor('#ffffff');
-        setArrowBgColor('rgba(167,139,250,0.8)');
-        break;
-      case 'gradient':
-        setBackgroundColor('linear-gradient(135deg, #667eea 0%, #764ba2 100%)');
-        setArrowColor('#ffffff');
-        setArrowBgColor('rgba(0,0,0,0.5)');
-        break;
-    }
-  };
 
   const fetchVideos = useCallback(async () => {
     setLoading(true);
@@ -205,14 +151,14 @@ export default function BucketManager() {
       
       const result = await response.json();
       toast.success('Video uploaded successfully to Cloudflare Stream!');
-      setUploadFile(null);
-      setUploadProgress(0);
-      fetchVideos();
+          setUploadFile(null);
+          setUploadProgress(0);
+          fetchVideos();
     } catch (error) {
       console.error('Upload failed:', error);
       toast.error(`Upload failed: ${error.message}`);
     } finally {
-      setUploading(false);
+        setUploading(false);
     }
   };
 
@@ -362,206 +308,503 @@ export default function BucketManager() {
       return;
     }
 
-    // Filter out thumbnail files and only include actual videos
-    const actualVideos = videos.filter(video => 
-      !video.key.startsWith('thumbnails/') && 
-      !video.key.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/i)
-    );
-
-    if (actualVideos.length === 0) {
-      toast.error('No actual video files found');
-      return;
-    }
-
-    const videoData = actualVideos.map(video => ({
-      url: video.url,
-      thumbnail: video.thumbnail || '',
-      name: video.key
+    // Transform videos to match glass-video-carousel.html format
+    const videoData = videos.map(video => ({
+      streamId: video.uid,
+      name: video.name
     }));
 
-    // Generate clean, minimal HTML like the example
+    // Generate HTML based on glass-video-carousel.html template
     const htmlCode = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glass Video Carousel</title>
     <style>
-        body {
+        * {
             margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: #1a1a1a;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        video::-webkit-media-controls-panel { background: ${backgroundColor}; }
-        video::-webkit-media-controls-play-button:hover,
-        video::-webkit-media-controls-mute-button:hover,
-        video::-webkit-media-controls-fullscreen-button:hover { filter: brightness(1.2); }
-        video::-webkit-media-controls-timeline { background: rgba(255,255,255,0.3); height: 4px; }
-        video::-webkit-media-controls-current-time-display,
-        video::-webkit-media-controls-time-remaining-display { color: ${playerAccentColor}; }
+        body {
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
 
-        .container {
-            position: relative;
-            max-width: ${maxWidth}px;
+        .carousel-container {
             width: 100%;
+            max-width: 600px;
             margin: 0 auto;
+            padding: 20px;
         }
 
         .video-wrapper {
             position: relative;
-            width: 100%;
-            padding-bottom: ${aspectRatio.toFixed(2)}%;
-            background: ${backgroundColor};
-            border-radius: ${borderRadius}px;
+            aspect-ratio: 1 / 1;
+            border-radius: 16px;
             overflow: hidden;
+            background: #000;
         }
 
-        video {
-            position: absolute;
-            top: 0;
-            left: 0;
+        .stream-iframe {
             width: 100%;
             height: 100%;
-            object-fit: contain;
-            accent-color: ${playerAccentColor};
-        }
-
-        .skeleton {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            display: none;
-            z-index: 1;
-        }
-
-        .skeleton.active {
-            display: block;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        .nav-btn {
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: ${arrowBgColor};
             border: none;
-            color: ${arrowColor};
-            width: ${arrowSize}px;
-            height: ${arrowSize}px;
-            border-radius: 50%;
+            border-radius: 16px;
             cursor: pointer;
-            font-size: ${arrowSize * 0.4}px;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-            z-index: 10;
+        }
+
+        .controls-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 24px;
+            pointer-events: none;
+        }
+
+        .controls-panel {
+            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.2); 
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            padding: 10px;
+            pointer-events: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .controls-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls-right {
+            display: flex;
+            align-items: center; 
+            gap: 6px;
+        }
+
+        .thumbnail-carousel {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding: 4px 0;
+        }
+
+        .thumbnail-carousel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .thumbnail-item {
+            position: relative;
+            flex-shrink: 0;
+            width: 60px;
+            height: 40px;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .thumbnail-item:hover {
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .thumbnail-item.active {
+            border-color: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .thumbnail-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .thumbnail-loading {
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
             display: flex;
             align-items: center;
             justify-content: center;
+            color: white;
+            font-size: 10px;
         }
 
-        .nav-btn:hover:not(:disabled) {
+        .btn {
+            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.3); 
+            border: 1px solid rgba(255, 255, 255, 0.15); 
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: rgba(0, 0, 0, 0.45); 
+            transform: scale(1.05);
+        }
+
+        .btn-play {
+            width: 42px;
+            height: 42px;
+            position: relative;
+        }
+
+        .btn-small {
+            width: 36px;
+            height: 36px;
+        }
+
+        .counter {
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 5px 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.2); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            text-shadow: 0 1px 1px rgba(0,0,0,0.3); 
+            line-height: 1;
+        }
+
+        .video-title {
+            margin-top: 16px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        svg {
+            width: 25px;
+            height: 22px;
+            stroke: white;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3)); 
+        }
+
+        .btn-play svg {
+            width: 24px;
+            height: 24px;
+            position: absolute;
+            transition: all 0.2s ease-out;
+        }
+
+        /* Play/Pause Icon Transitions */
+        #playIcon {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        #pauseIcon {
+            opacity: 0;
+            transform: scale(0.7);
+        }
+
+        .btn-play.is-playing #playIcon {
+            opacity: 0;
+            transform: scale(0.7);
+        }
+        
+        .btn-play.is-playing #pauseIcon {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .loading-overlay.show {
             opacity: 1;
         }
 
-        .nav-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
 
-        #nextBtn {
-            left: auto;
-            right: 10px;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .carousel-container {
+                padding: 12px;
+            }
+            .controls-panel {
+                padding: 12px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="carousel-container">
         <div class="video-wrapper">
-            <div id="skeleton" class="skeleton"></div>
-            <video id="vp" controls preload="metadata"></video>
-            <video id="preload" style="display: none;" preload="auto"></video>
-            ${showArrows ? `<button id="prevBtn" class="nav-btn">‹</button>
-            <button id="nextBtn" class="nav-btn">›</button>` : ''}
+            <iframe id="streamPlayer" class="stream-iframe" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
+            
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loader"></div>
         </div>
+            
+            <div class="controls-overlay">
+                <div class="controls-panel">
+                    <div class="controls-inner">
+                        <div class="controls-left">
+                            <button class="btn btn-play" id="playBtn">
+                                <svg id="playIcon" viewBox="0 0 24 24">
+                                    <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                                </svg>
+                                <svg id="pauseIcon" viewBox="0 0 24 24">
+                                    <line x1="10" y1="8" x2="10" y2="16"></line>
+                                    <line x1="14" y1="8" x2="14" y2="16"></line>
+                                </svg>
+                            </button>
+                            
+                            <button class="btn btn-small" id="muteBtn">
+                                <svg id="muteIcon" viewBox="0 0 24 24">
+                                    <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
+                                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                                </svg>
+                                <svg id="volumeIcon" style="display: none;" viewBox="0 0 24 24">
+                                    <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="controls-right">
+                            <button class="btn btn-small" id="prevBtn">
+                                <svg>
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            
+                            <div class="thumbnail-carousel" id="thumbnailCarousel">
+                                <!-- Thumbnails will be dynamically generated here -->
+                            </div>
+                            
+                            <button class="btn btn-small" id="nextBtn">
+                                <svg>
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
     </div>
 
     <script>
-        const vids = ${JSON.stringify(videoData)};
+        var vids = ${JSON.stringify(videoData)};
 
-        let i = 0;
-        const v = document.getElementById('vp');
-        const p = document.getElementById('preload');
-        const skeleton = document.getElementById('skeleton');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
+        var currentIndex = 0;
+        var isPlaying = false;
+        var isMuted = true;
+        var preloadedVideos = {};
+        var streamDomain = "customer-aanhjdlw75bwi5za.cloudflarestream.com";
 
-        function updateButtons() {
-            if (prevBtn) prevBtn.disabled = i === 0;
-            if (nextBtn) nextBtn.disabled = i === vids.length - 1;
-        }
+        var streamPlayer = document.getElementById('streamPlayer');
+        var playBtn = document.getElementById('playBtn');
+        var muteBtn = document.getElementById('muteBtn');
+        var prevBtn = document.getElementById('prevBtn');
+        var nextBtn = document.getElementById('nextBtn');
+        var thumbnailCarousel = document.getElementById('thumbnailCarousel');
+        var playIcon = document.getElementById('playIcon');
+        var pauseIcon = document.getElementById('pauseIcon');
+        var muteIcon = document.getElementById('muteIcon');
+        var volumeIcon = document.getElementById('volumeIcon');
+        var loadingOverlay = document.getElementById('loadingOverlay');
 
-        function preloadAdjacent() {
-            if (i < vids.length - 1) {
-                p.src = vids[i + 1].url;
-                p.load();
-            }
-        }
-
-        function changeVideo() {
-            skeleton.classList.add('active');
-            v.src = vids[i].url;
-            v.poster = vids[i].thumbnail;
-            v.load();
+        function preloadVideo(index) {
+            if (preloadedVideos[index]) return;
             
-            v.onloadeddata = () => {
-                skeleton.classList.remove('active');
-            };
+            var vid = document.createElement('video');
+            vid.src = buildStreamUrl(vids[index].streamId);
+            vid.preload = 'auto';
+            preloadedVideos[index] = vid;
+        }
+
+        function preloadNearbyVideos(currentIndex) {
+            var nextIndex = (currentIndex + 1) % vids.length;
+            var prevIndex = (currentIndex - 1 + vids.length) % vids.length;
             
-            updateButtons();
-            preloadAdjacent();
+            preloadVideo(nextIndex);
+            preloadVideo(prevIndex);
         }
 
-        function vidPrev() {
-            if (i > 0) {
-                i--;
-                changeVideo();
+        function buildStreamUrl(streamId) {
+            return \`https://\${streamDomain}/\${streamId}/iframe?preload=true&poster=https%3A%2F%2F\${streamDomain}%2F\${streamId}%2Fthumbnails%2Fthumbnail.jpg%3Ftime%3D%26height%3D600\`;
+        }
+
+        function buildThumbnailUrl(streamId) {
+            return \`https://\${streamDomain}/\${streamId}/thumbnails/thumbnail.jpg?time=&height=120\`;
+        }
+
+        function createThumbnailCarousel() {
+            thumbnailCarousel.innerHTML = '';
+            
+            vids.forEach(function(vid, index) {
+                var thumbnailItem = document.createElement('div');
+                thumbnailItem.className = 'thumbnail-item';
+                thumbnailItem.dataset.index = index;
+                
+                if (index === currentIndex) {
+                    thumbnailItem.classList.add('active');
+                }
+                
+                var loadingDiv = document.createElement('div');
+                loadingDiv.className = 'thumbnail-loading';
+                loadingDiv.textContent = '...';
+                thumbnailItem.appendChild(loadingDiv);
+                
+                var img = new Image();
+                img.className = 'thumbnail-img';
+                img.loading = 'lazy';
+                img.onload = function() {
+                    loadingDiv.remove();
+                    thumbnailItem.appendChild(img);
+                };
+                img.onerror = function() {
+                    loadingDiv.textContent = '?';
+                };
+                img.src = buildThumbnailUrl(vid.streamId);
+                
+                thumbnailItem.addEventListener('click', function() {
+                    jumpToVideo(index);
+                });
+                
+                thumbnailCarousel.appendChild(thumbnailItem);
+            });
+        }
+
+        function updateThumbnailCarousel() {
+            var thumbnails = thumbnailCarousel.querySelectorAll('.thumbnail-item');
+            thumbnails.forEach(function(thumb, index) {
+                if (index === currentIndex) {
+                    thumb.classList.add('active');
+                } else {
+                    thumb.classList.remove('active');
+                }
+            });
+        }
+
+        function jumpToVideo(index) {
+            if (index >= 0 && index < vids.length) {
+                currentIndex = index;
+                loadVideo(currentIndex);
+                updateThumbnailCarousel();
             }
         }
 
-        function vidNext() {
-            if (i < vids.length - 1) {
-                i++;
-                changeVideo();
-            }
+        function showLoading() {
+            loadingOverlay.classList.add('show');
         }
 
-        if (prevBtn) prevBtn.onclick = vidPrev;
-        if (nextBtn) nextBtn.onclick = vidNext;
+        function hideLoading() {
+            loadingOverlay.classList.remove('show');
+        }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') vidPrev();
-            if (e.key === 'ArrowRight') vidNext();
+        function loadVideo(index) {
+            isPlaying = false;
+            playBtn.classList.remove('is-playing');
+            
+            var streamId = vids[index].streamId;
+            var streamUrl = buildStreamUrl(streamId);
+            console.log('Loading video:', streamUrl);
+            streamPlayer.src = streamUrl;
+            
+            updateThumbnailCarousel();
+            preloadNearbyVideos(index);
+        }
+
+        streamPlayer.addEventListener('load', function() {
+            console.log('Stream iframe loaded');
+            hideLoading();
         });
 
-        // Init
-        v.src = vids[0].url;
-        v.poster = vids[0].thumbnail;
-        updateButtons();
-        preloadAdjacent();
+        streamPlayer.addEventListener('error', function(e) {
+            console.log('Stream iframe error:', e);
+            hideLoading();
+        });
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            playBtn.classList.toggle('is-playing', isPlaying);
+            console.log('Play button clicked, isPlaying:', isPlaying);
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            updateMuteIcon();
+            console.log('Mute button clicked, isMuted:', isMuted);
+        }
+
+        function updateMuteIcon() {
+            muteIcon.style.display = isMuted ? 'block' : 'none';
+            volumeIcon.style.display = isMuted ? 'none' : 'block';
+        }
+
+        function nextVideo() {
+            currentIndex = (currentIndex + 1) % vids.length;
+            loadVideo(currentIndex);
+        }
+
+        function prevVideo() {
+            currentIndex = (currentIndex - 1 + vids.length) % vids.length;
+            loadVideo(currentIndex);
+        }
+
+        playBtn.addEventListener('click', togglePlay);
+        muteBtn.addEventListener('click', toggleMute);
+        prevBtn.addEventListener('click', prevVideo);
+        nextBtn.addEventListener('click', nextVideo);
+        streamPlayer.addEventListener('click', togglePlay);
+
+        createThumbnailCarousel();
+        loadVideo(currentIndex);
     </script>
 </body>
 </html>`;
@@ -571,7 +814,7 @@ export default function BucketManager() {
     try {
       await copyToClipboard(htmlCode);
       toast.success('✓ Copied!', {
-        description: 'HTML snippet ready to paste',
+        description: 'Glass video carousel HTML ready to paste',
         duration: 2000
       });
     } catch (error) {
@@ -647,11 +890,11 @@ export default function BucketManager() {
             >
               <span className="flex items-center gap-2">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transition-transform duration-300 group-hover:rotate-12">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7,10 12,15 17,10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Generate HTML Code
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7,10 12,15 17,10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Generate HTML Code
               </span>
               <div className="absolute inset-0 bg-white/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </button>
@@ -661,309 +904,52 @@ export default function BucketManager() {
 
       <Tabs defaultValue="customize" className="space-y-6">
         <TabsList className="bg-white/80 border border-orange-200/50 shadow-lg">
-          <TabsTrigger value="customize" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-orange-700">Customize Snippet</TabsTrigger>
+          <TabsTrigger value="customize" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-orange-700">Generate</TabsTrigger>
           <TabsTrigger value="videos" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-orange-700">Videos ({videos.length})</TabsTrigger>
           <TabsTrigger value="upload" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-orange-700">Upload</TabsTrigger>
         </TabsList>
 
-        {/* Customize Tab */}
+        {/* Generate Tab */}
         <TabsContent value="customize" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Settings Panel */}
-            <Card className="bg-white/90 border-orange-200/50 shadow-xl">
+          <Card className="bg-white/90 border-orange-200/50 shadow-xl">
               <CardHeader>
-                <CardTitle className="text-orange-800">Player Settings</CardTitle>
+              <CardTitle className="text-orange-800">Generate HTML Snippet</CardTitle>
+              <p className="text-orange-600/70 text-sm">
+                Create a clean, embeddable HTML snippet based on your glass-video-carousel.html template
+              </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label className="text-sm font-semibold text-orange-700">Theme Presets</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('dark')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Dark</Button>
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('light')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Light</Button>
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('blue')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Blue</Button>
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('purple')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Purple</Button>
-                    <Button size="sm" variant="outline" onClick={() => applyTheme('gradient')} className="border-orange-200 text-orange-700 hover:bg-orange-50">Gradient</Button>
-                  </div>
+              <div className="space-y-4">
+                <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                  <h3 className="font-semibold text-orange-800 mb-2">What you'll get:</h3>
+                  <ul className="text-sm text-orange-700 space-y-1">
+                    <li>• Clean HTML based on your glass-video-carousel.html template</li>
+                    <li>• Cloudflare Stream iframe integration</li>
+                    <li>• Glass morphism design with blur effects</li>
+                    <li>• Thumbnail carousel navigation</li>
+                    <li>• Responsive design for all devices</li>
+                    <li>• No external dependencies - pure HTML/CSS/JS</li>
+                  </ul>
                 </div>
 
-                <div>
-                  <Label className="text-orange-700">Max Width: {maxWidth}px</Label>
-                  <Slider
-                    value={[maxWidth]}
-                    onValueChange={(val) => setMaxWidth(val[0])}
-                    min={300}
-                    max={1200}
-                    step={50}
-                    className="mt-2 [&_[role=slider]]:bg-orange-500"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label className="text-orange-700">Aspect Ratio: {aspectWidth}:{aspectHeight} ({(aspectWidth/aspectHeight).toFixed(2)})</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs text-orange-600">Width</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={aspectWidth}
-                        onChange={(e) => setAspectWidth(parseFloat(e.target.value) || 16)}
-                        className="mt-1 border-orange-200 focus:border-orange-500"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-orange-600">Height</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={aspectHeight}
-                        onChange={(e) => setAspectHeight(parseFloat(e.target.value) || 9)}
-                        className="mt-1 border-orange-200 focus:border-orange-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(16); setAspectHeight(9); }} className="border-orange-200 text-orange-700 hover:bg-orange-50">16:9</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(4); setAspectHeight(3); }} className="border-orange-200 text-orange-700 hover:bg-orange-50">4:3</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(1); setAspectHeight(1); }} className="border-orange-200 text-orange-700 hover:bg-orange-50">1:1</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setAspectWidth(21); setAspectHeight(9); }} className="border-orange-200 text-orange-700 hover:bg-orange-50">21:9</Button>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-orange-700">Border Radius: {borderRadius}px</Label>
-                  <Slider
-                    value={[borderRadius]}
-                    onValueChange={(val) => setBorderRadius(val[0])}
-                    min={0}
-                    max={30}
-                    step={2}
-                    className="mt-2 [&_[role=slider]]:bg-orange-500"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label className="text-orange-700">Show Navigation Arrows</Label>
-                  <Switch
-                    checked={showArrows}
-                    onCheckedChange={setShowArrows}
-                    className="data-[state=checked]:bg-orange-500"
-                  />
-                </div>
-
-                {showArrows && (
-                  <>
-                    <div>
-                      <Label>Arrow Size: {arrowSize}px</Label>
-                      <Slider
-                        value={[arrowSize]}
-                        onValueChange={(val) => setArrowSize(val[0])}
-                        min={30}
-                        max={60}
-                        step={5}
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Arrow Style</Label>
-                      <div className="grid grid-cols-4 gap-2">
-                        <Button 
-                          size="sm" 
-                          variant={arrowStyle === 'chevron' ? 'default' : 'outline'}
-                          onClick={() => setArrowStyle('chevron')}
-                        >‹ ›</Button>
-                        <Button 
-                          size="sm" 
-                          variant={arrowStyle === 'arrow' ? 'default' : 'outline'}
-                          onClick={() => setArrowStyle('arrow')}
-                        >← →</Button>
-                        <Button 
-                          size="sm" 
-                          variant={arrowStyle === 'triangle' ? 'default' : 'outline'}
-                          onClick={() => setArrowStyle('triangle')}
-                        >◀ ▶</Button>
-                        <Button 
-                          size="sm" 
-                          variant={arrowStyle === 'circle' ? 'default' : 'outline'}
-                          onClick={() => setArrowStyle('circle')}
-                        >⬅ ➡</Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div className="space-y-3 pt-4 border-t">
-                  <Label className="text-sm font-semibold">Colors</Label>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Background</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Input
-                          type="color"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="w-12 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          type="text"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="flex-1 text-xs"
-                          placeholder="#000000"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Player Controls</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Input
-                          type="color"
-                          value={playerAccentColor}
-                          onChange={(e) => setPlayerAccentColor(e.target.value)}
-                          className="w-12 h-9 p-1 cursor-pointer"
-                        />
-                        <Input
-                          type="text"
-                          value={playerAccentColor}
-                          onChange={(e) => setPlayerAccentColor(e.target.value)}
-                          className="flex-1 text-xs"
-                          placeholder="#3b82f6"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {showArrows && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Arrow Icon</Label>
-                        <div className="flex gap-2 mt-1">
-                          <Input
-                            type="color"
-                            value={arrowColor}
-                            onChange={(e) => setArrowColor(e.target.value)}
-                            className="w-12 h-9 p-1 cursor-pointer"
-                          />
-                          <Input
-                            type="text"
-                            value={arrowColor}
-                            onChange={(e) => setArrowColor(e.target.value)}
-                            className="flex-1 text-xs"
-                            placeholder="#ffffff"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Arrow Circle</Label>
-                        <Input
-                          type="text"
-                          value={arrowBgColor}
-                          onChange={(e) => setArrowBgColor(e.target.value)}
-                          className="mt-1 text-xs"
-                          placeholder="rgba(0,0,0,0.5)"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
+                <div className="text-center">
                 <Button 
                   onClick={generateCodeSnippet}
-                  className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95"
-                  size="lg"
+                    className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95 px-8 py-4 text-lg"
                   disabled={videos.length === 0}
                 >
-                  <Copy className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:rotate-12" />
+                    <Copy className="w-5 h-5 mr-3 transition-transform duration-300 group-hover:rotate-12" />
                   Generate & Copy HTML Snippet
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Live Preview */}
-            <Card className="bg-white/90 border-orange-200/50 shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-orange-800">Live Preview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {videos.length > 0 ? (
-                  <div style={{ position: 'relative', maxWidth: `${maxWidth}px`, margin: '0 auto' }}>
-                    <div style={{ 
-                      position: 'relative',
-                      width: '100%',
-                      paddingBottom: `${aspectRatio.toFixed(2)}%`,
-                      background: backgroundColor, 
-                      borderRadius: `${borderRadius}px`, 
-                      overflow: 'hidden'
-                    }}>
-                      <video 
-                        controls
-                        preload="none"
-                        style={{ 
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain',
-                          accentColor: playerAccentColor
-                        }}
-                        src={videos.filter(v => !v.key.startsWith('thumbnails/') && !v.key.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/i))[0]?.url}
-                      />
-                    </div>
-                    {showArrows && (
-                      <>
-                        <div style={{
-                          position: 'absolute',
-                          left: '10px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: arrowBgColor,
-                          border: 'none',
-                          color: arrowColor,
-                          width: `${arrowSize}px`,
-                          height: `${arrowSize}px`,
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: `${arrowSize * 0.5}px`,
-                          opacity: 0.7,
-                          zIndex: 10
-                        }}>{arrowIcons[arrowStyle as keyof typeof arrowIcons].left}</div>
-                        <div style={{
-                          position: 'absolute',
-                          right: '10px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          background: arrowBgColor,
-                          border: 'none',
-                          color: arrowColor,
-                          width: `${arrowSize}px`,
-                          height: `${arrowSize}px`,
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: `${arrowSize * 0.5}px`,
-                          opacity: 0.7,
-                          zIndex: 10
-                        }}>{arrowIcons[arrowStyle as keyof typeof arrowIcons].right}</div>
-                      </>
+                  {videos.length === 0 && (
+                    <p className="text-orange-600/70 text-sm mt-2">
+                      Upload some videos first to generate the snippet
+                    </p>
                     )}
                   </div>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>Add videos to see preview</p>
                   </div>
-                )}
               </CardContent>
             </Card>
-          </div>
         </TabsContent>
 
         {/* Videos Tab */}

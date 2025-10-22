@@ -18,17 +18,27 @@
 
         .carousel-container {
             width: 100%;
-            max-width: 600px;
+            max-width: 500px;
             margin: 0 auto;
             padding: 20px;
         }
 
-        .video-wrapper {
-            position: relative;
+        .video-player-container {
             aspect-ratio: 1 / 1;
             border-radius: 16px;
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-wrapper {
+            position: relative;
+            flex: 1;
+            border-radius: 16px 16px 0 0;
+            overflow: hidden;
             background: #000;
+            border-bottom: none;
         }
 
         .stream-iframe {
@@ -40,13 +50,24 @@
         }
 
         .controls-panel {
-            margin-top: 16px;
             backdrop-filter: blur(8px);
-            background: rgba(0, 0, 0, 0.2); 
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1); 
-            padding: 16px;
+            background: rgba(0, 0, 0, 0.3); 
+            border-radius: 0 0 16px 16px;
+            border-top: none;
+            padding: 12px 16px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .controls-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         }
 
         .controls-inner {
@@ -60,14 +81,25 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            overflow-x: auto;
+            overflow-x: hidden;
             scrollbar-width: none;
             -ms-overflow-style: none;
             padding: 4px 0;
+            position: relative;
+            width: 100%;
+            max-width: 300px;
         }
 
         .thumbnail-carousel::-webkit-scrollbar {
             display: none;
+        }
+
+        .thumbnail-track {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.3s ease;
+            will-change: transform;
         }
 
         .thumbnail-item {
@@ -242,31 +274,35 @@
 </head>
 <body>
     <div class="carousel-container">
-        <div class="video-wrapper">
-            <iframe id="streamPlayer" class="stream-iframe" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
-            
-            <div class="loading-overlay" id="loadingOverlay">
-                <div class="loader"></div>
-            </div>
-        </div>
-        
-        <div class="controls-panel">
-            <div class="controls-inner">
-                <button class="btn btn-small" id="prevBtn">
-                    <svg>
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                </button>
+        <div class="video-player-container">
+            <div class="video-wrapper">
+                <iframe id="streamPlayer" class="stream-iframe" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
                 
-                <div class="thumbnail-carousel" id="thumbnailCarousel">
-                    <!-- Thumbnails will be dynamically generated here -->
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="loader"></div>
                 </div>
-                
-                <button class="btn btn-small" id="nextBtn">
-                    <svg>
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                </button>
+            </div>
+            
+            <div class="controls-panel">
+                <div class="controls-inner">
+                    <button class="btn btn-small" id="prevBtn">
+                        <svg>
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    
+                    <div class="thumbnail-carousel" id="thumbnailCarousel">
+                        <div class="thumbnail-track" id="thumbnailTrack">
+                            <!-- Thumbnails will be dynamically generated here -->
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-small" id="nextBtn">
+                        <svg>
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -292,15 +328,10 @@
         var streamDomain = "customer-aanhjdlw75bwi5za.cloudflarestream.com";
 
         var streamPlayer = document.getElementById('streamPlayer');
-        var playBtn = document.getElementById('playBtn');
-        var muteBtn = document.getElementById('muteBtn');
         var prevBtn = document.getElementById('prevBtn');
         var nextBtn = document.getElementById('nextBtn');
         var thumbnailCarousel = document.getElementById('thumbnailCarousel');
-        var playIcon = document.getElementById('playIcon');
-        var pauseIcon = document.getElementById('pauseIcon');
-        var muteIcon = document.getElementById('muteIcon');
-        var volumeIcon = document.getElementById('volumeIcon');
+        var thumbnailTrack = document.getElementById('thumbnailTrack');
         var loadingOverlay = document.getElementById('loadingOverlay');
 
         function preloadVideo(index) {
@@ -331,7 +362,7 @@
         }
 
         function createThumbnailCarousel() {
-            thumbnailCarousel.innerHTML = '';
+            thumbnailTrack.innerHTML = '';
             
             vids.forEach(function(vid, index) {
                 var thumbnailItem = document.createElement('div');
@@ -366,12 +397,14 @@
                     jumpToVideo(index);
                 });
                 
-                thumbnailCarousel.appendChild(thumbnailItem);
+                thumbnailTrack.appendChild(thumbnailItem);
             });
+            
+            updateThumbnailScroll();
         }
 
         function updateThumbnailCarousel() {
-            var thumbnails = thumbnailCarousel.querySelectorAll('.thumbnail-item');
+            var thumbnails = thumbnailTrack.querySelectorAll('.thumbnail-item');
             thumbnails.forEach(function(thumb, index) {
                 if (index === currentIndex) {
                     thumb.classList.add('active');
@@ -379,6 +412,30 @@
                     thumb.classList.remove('active');
                 }
             });
+            updateThumbnailScroll();
+        }
+
+        function updateThumbnailScroll() {
+            var carouselWidth = thumbnailCarousel.offsetWidth;
+            var trackWidth = thumbnailTrack.scrollWidth;
+            var itemWidth = 50 + 8; // thumbnail width + gap
+            
+            if (trackWidth <= carouselWidth) {
+                // All thumbnails fit, align to left
+                thumbnailTrack.style.transform = 'translateX(0)';
+                return;
+            }
+            
+            // Calculate how many thumbnails are visible
+            var visibleCount = Math.floor(carouselWidth / itemWidth);
+            var maxScroll = Math.max(0, vids.length - visibleCount);
+            
+            // Calculate scroll position to keep current thumbnail visible from the left
+            var scrollIndex = Math.min(currentIndex, maxScroll);
+            var scrollPosition = -scrollIndex * itemWidth;
+            
+            // Keep thumbnails aligned to the left side
+            thumbnailTrack.style.transform = 'translateX(' + scrollPosition + 'px)';
         }
 
         function jumpToVideo(index) {
@@ -398,9 +455,6 @@
         }
 
         function loadVideo(index) {
-            isPlaying = false;
-            playBtn.classList.remove('is-playing');
-            
             var streamId = vids[index].streamId;
             var streamUrl = buildStreamUrl(streamId);
             console.log('Loading video:', streamUrl);
@@ -420,24 +474,6 @@
             hideLoading();
         });
 
-        function togglePlay() {
-            // For iframe, we can't directly control play/pause
-            // Just toggle the visual state for now
-            isPlaying = !isPlaying;
-            playBtn.classList.toggle('is-playing', isPlaying);
-            console.log('Play button clicked, isPlaying:', isPlaying);
-        }
-
-        function toggleMute() {
-            isMuted = !isMuted;
-            updateMuteIcon();
-            console.log('Mute button clicked, isMuted:', isMuted);
-        }
-
-        function updateMuteIcon() {
-            muteIcon.style.display = isMuted ? 'block' : 'none';
-            volumeIcon.style.display = isMuted ? 'none' : 'block';
-        }
 
         function nextVideo() {
             currentIndex = (currentIndex + 1) % vids.length;
@@ -449,11 +485,8 @@
             loadVideo(currentIndex);
         }
 
-        playBtn.addEventListener('click', togglePlay);
-        muteBtn.addEventListener('click', toggleMute);
         prevBtn.addEventListener('click', prevVideo);
         nextBtn.addEventListener('click', nextVideo);
-        streamPlayer.addEventListener('click', togglePlay);
 
         // Initialize thumbnail carousel
         createThumbnailCarousel();
