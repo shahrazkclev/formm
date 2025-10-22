@@ -37,6 +37,13 @@ interface VideoFile {
   duration?: number;
 }
 
+interface CloudflareStatus {
+  state: string;
+  pctComplete?: number;
+  errorReasonCode?: string;
+  errorReasonText?: string;
+}
+
 interface PlayerSettings {
   width: number;
   height: number;
@@ -97,7 +104,7 @@ export default function BucketManager() {
         thumbnail?: string;
         meta?: { name?: string };
         filename?: string;
-        status?: string;
+        status?: CloudflareStatus | string;
         duration?: number;
       }) => ({
         key: video.uid || `video-${Date.now()}`,
@@ -107,7 +114,7 @@ export default function BucketManager() {
         thumbnail: video.thumbnail || undefined,
         uid: video.uid || `video-${Date.now()}`,
         name: video.meta?.name || video.filename || 'Untitled Video',
-        status: video.status || 'unknown',
+        status: typeof video.status === 'object' ? video.status.state : (video.status || 'unknown'),
         duration: video.duration || 0
       }));
       
