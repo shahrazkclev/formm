@@ -1222,7 +1222,7 @@ export default function BucketManager() {
               <CardContent>
                 <div>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Video URLs: {videos.map(video => video.url).join(', ')}
+                    Video URLs: {videos.map(video => video.url || '').filter(url => url).join(', ')}
                   </p>
                   <Suspense fallback={
                     <div className="flex items-center justify-center py-12">
@@ -1233,7 +1233,7 @@ export default function BucketManager() {
                     </div>
                   }>
                     <VideoContainer 
-                      urls={videos.map(video => video.url)}
+                      urls={videos.map(video => video.url || '').filter(url => url)}
                       title="Video Player"
                       className="max-w-4xl mx-auto"
                     />
