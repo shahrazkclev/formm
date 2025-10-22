@@ -126,6 +126,14 @@ export default function BucketManager() {
     fetchVideos();
   }, [fetchVideos]);
 
+  // Ensure uploadProgress is always a number
+  useEffect(() => {
+    if (typeof uploadProgress !== 'number') {
+      console.warn('uploadProgress is not a number:', uploadProgress);
+      setUploadProgress(0);
+    }
+  }, [uploadProgress]);
+
   const uploadVideo = async () => {
     if (!uploadFile) return;
     
@@ -1267,9 +1275,9 @@ export default function BucketManager() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Uploading...</span>
-                        <span className="font-medium text-primary">{uploadProgress}%</span>
+                        <span className="font-medium text-primary">{typeof uploadProgress === 'number' ? uploadProgress : 0}%</span>
                       </div>
-                      <Progress value={uploadProgress} className="h-2" />
+                      <Progress value={typeof uploadProgress === 'number' ? uploadProgress : 0} className="h-2" />
                     </div>
                   )}
                 </div>
@@ -1281,7 +1289,7 @@ export default function BucketManager() {
                 className="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                {uploading ? `Uploading... ${uploadProgress}%` : 'Upload Video'}
+                {uploading ? `Uploading... ${typeof uploadProgress === 'number' ? uploadProgress : 0}%` : 'Upload Video'}
               </Button>
             </CardContent>
           </Card>
