@@ -44,6 +44,8 @@ export default function BucketManager() {
   const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
   const [videoToDelete, setVideoToDelete] = useState<VideoFile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [thumbnailToUpload, setThumbnailToUpload] = useState<{video: VideoFile, file: File} | null>(null);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
 
   // Fetch videos from Supabase
   const fetchVideos = useCallback(async () => {
@@ -190,6 +192,50 @@ export default function BucketManager() {
     }
   };
 
+  const uploadThumbnail = async (video: VideoFile, file: File) => {
+    setUploadingThumbnail(true);
+    try {
+      // Upload to Cloudflare Stream as a thumbnail
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(`${STREAM_API_BASE}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${STREAM_API_TOKEN}`,
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.errors?.[0]?.message || `Thumbnail upload failed: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      const thumbnailData = result.result;
+      
+      // Update the video record with new thumbnail URL
+      const { error } = await supabase
+        .from('videos')
+        .update({ 
+          thumbnail_url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${thumbnailData.uid}/thumbnails/thumbnail.jpg`
+        })
+        .eq('uid', video.uid);
+      
+      if (error) throw error;
+      
+      toast.success('Thumbnail uploaded successfully!');
+      setThumbnailToUpload(null);
+      fetchVideos();
+    } catch (error: any) {
+      console.error('Thumbnail upload failed:', error);
+      toast.error(`Thumbnail upload failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
+
   const generateCodeSnippet = async () => {
     if (videos.length === 0) {
       toast.error('No videos to generate code for. Please upload some videos first.');
@@ -236,6 +282,7 @@ export default function BucketManager() {
             scrollbar-width: none;
             -ms-overflow-style: none;
             max-width: calc(100% - 100px);
+            scroll-behavior: smooth;
         }
         .thumbnail-carousel::-webkit-scrollbar { display: none; }
         .thumbnail-item { 
@@ -256,6 +303,16 @@ export default function BucketManager() {
             box-shadow: 0 0 8px rgba(255, 255, 255, 0.2); 
         }
         .thumbnail-img { width: 100%; height: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.3); }
+        .thumbnail-loading { 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0, 0, 0, 0.5); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: white; 
+            font-size: 10px; 
+        }
         .btn { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; width: 36px; height: 36px; }
         .btn:hover { background: rgba(0, 0, 0, 0.45); transform: scale(1.05); }
         svg { width: 22px; height: 22px; stroke: white; fill: none; stroke-width: 2; }
@@ -314,11 +371,38 @@ export default function BucketManager() {
                 var div = document.createElement('div');
                 div.className = 'thumbnail-item' + (index === currentIndex ? ' active' : '');
                 div.onclick = function() { jumpToVideo(index); };
+                
+                // Create loading placeholder
+                var loadingDiv = document.createElement('div');
+                loadingDiv.className = 'thumbnail-loading';
+                loadingDiv.textContent = '...';
+                div.appendChild(loadingDiv);
+                
+                // Preload thumbnail with better error handling
                 var img = document.createElement('img');
                 img.className = 'thumbnail-img';
+                img.loading = 'lazy';
+                img.onload = function() {
+                    loadingDiv.remove();
+                    div.appendChild(img);
+                };
+                img.onerror = function() {
+                    // Try alternative thumbnail URL
+                    var altUrl = buildThumbnailUrl(vid.streamId).replace('thumbnail.jpg', 'thumbnail.png');
+                    var altImg = new Image();
+                    altImg.className = 'thumbnail-img';
+                    altImg.onload = function() {
+                        loadingDiv.remove();
+                        div.appendChild(altImg);
+                    };
+                    altImg.onerror = function() {
+                        loadingDiv.textContent = '📹';
+                        loadingDiv.style.fontSize = '16px';
+                    };
+                    altImg.src = altUrl;
+                };
                 img.src = buildThumbnailUrl(vid.streamId);
-                img.onerror = function() { this.style.background = 'rgba(0,0,0,0.5)'; };
-                div.appendChild(img);
+                
                 thumbnailCarousel.appendChild(div);
             });
         }
@@ -334,6 +418,23 @@ export default function BucketManager() {
             thumbnails.forEach(function(thumb, i) {
                 thumb.className = 'thumbnail-item' + (i === currentIndex ? ' active' : '');
             });
+            
+            // Auto-scroll to keep active thumbnail in view
+            var activeThumbnail = thumbnailCarousel.querySelector('.thumbnail-item.active');
+            if (activeThumbnail) {
+                var carouselRect = thumbnailCarousel.getBoundingClientRect();
+                var thumbnailRect = activeThumbnail.getBoundingClientRect();
+                var scrollLeft = thumbnailCarousel.scrollLeft;
+                
+                // Check if thumbnail is outside left edge
+                if (thumbnailRect.left < carouselRect.left) {
+                    thumbnailCarousel.scrollLeft = scrollLeft - (carouselRect.left - thumbnailRect.left) - 20;
+                }
+                // Check if thumbnail is outside right edge
+                else if (thumbnailRect.right > carouselRect.right) {
+                    thumbnailCarousel.scrollLeft = scrollLeft + (thumbnailRect.right - carouselRect.right) + 20;
+                }
+            }
         }
         
         function nextVideo() {
@@ -484,15 +585,37 @@ export default function BucketManager() {
                         <span>{formatFileSize(video.size)}</span>
                         <Badge variant="secondary">{video.status}</Badge>
                       </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => setVideoToDelete(video)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) {
+                                setThumbnailToUpload({ video, file });
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          Thumbnail
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => setVideoToDelete(video)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -520,6 +643,29 @@ export default function BucketManager() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Thumbnail Upload Confirmation Dialog */}
+      <AlertDialog open={!!thumbnailToUpload} onOpenChange={() => setThumbnailToUpload(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Upload Thumbnail?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Upload "{thumbnailToUpload?.file.name}" as thumbnail for "{thumbnailToUpload?.video.name}"?
+              This will replace the current thumbnail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={uploadingThumbnail}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => thumbnailToUpload && uploadThumbnail(thumbnailToUpload.video, thumbnailToUpload.file)}
+              disabled={uploadingThumbnail}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              {uploadingThumbnail ? 'Uploading...' : 'Upload Thumbnail'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -105,6 +105,7 @@
             position: relative;
             flex: 1;
             justify-content: center;
+            scroll-behavior: smooth;
         }
 
         .thumbnail-carousel::before,
@@ -489,6 +490,23 @@
                 }
             });
             updateThumbnailScroll();
+            
+            // Auto-scroll to keep active thumbnail in view
+            var activeThumbnail = thumbnailTrack.querySelector('.thumbnail-item.active');
+            if (activeThumbnail) {
+                var carouselRect = thumbnailCarousel.getBoundingClientRect();
+                var thumbnailRect = activeThumbnail.getBoundingClientRect();
+                var scrollLeft = thumbnailCarousel.scrollLeft;
+                
+                // Check if thumbnail is outside left edge
+                if (thumbnailRect.left < carouselRect.left) {
+                    thumbnailCarousel.scrollLeft = scrollLeft - (carouselRect.left - thumbnailRect.left) - 20;
+                }
+                // Check if thumbnail is outside right edge
+                else if (thumbnailRect.right > carouselRect.right) {
+                    thumbnailCarousel.scrollLeft = scrollLeft + (thumbnailRect.right - carouselRect.right) + 20;
+                }
+            }
         }
 
         function updateThumbnailScroll() {
