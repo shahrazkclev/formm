@@ -213,9 +213,9 @@ export default function BucketManager() {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         .carousel-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .video-player-container { width: 100%; aspect-ratio: 1.2 / 1; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; }
-        .video-wrapper { position: relative; flex: 1; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; }
-        .stream-iframe { width: 100%; height: 100%; border: none; border-radius: 16px; cursor: pointer; }
+        .video-player-container { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; }
+        .video-wrapper { position: relative; aspect-ratio: 16 / 9; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; }
+        .stream-iframe { width: 100%; height: 100%; border: none; cursor: pointer; }
         .controls-panel { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border-radius: 0 0 16px 16px; padding: 16px 20px; display: flex; align-items: center; }
         .controls-inner { display: flex; align-items: center; justify-content: center; gap: 16px; width: 100%; padding: 0 40px; }
         .thumbnail-carousel { display: flex; align-items: center; gap: 8px; overflow-x: hidden; flex: 1; justify-content: center; }
