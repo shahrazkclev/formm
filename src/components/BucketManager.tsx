@@ -213,16 +213,16 @@ export default function BucketManager() {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         .carousel-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .video-player-container { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; background: #000; }
-        .video-wrapper { position: relative; width: 100%; height: 0; padding-bottom: 177.78%; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; }
-        .stream-iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+        .video-player-container { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; }
+        .video-wrapper { position: relative; width: 100%; height: 600px; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; }
+        .stream-iframe { width: 100%; height: 100%; border: none; cursor: pointer; }
         .controls-panel { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border-radius: 0 0 16px 16px; padding: 16px 20px; display: flex; align-items: center; }
         .controls-inner { display: flex; align-items: center; justify-content: center; gap: 16px; width: 100%; padding: 0 40px; }
         .thumbnail-carousel { display: flex; align-items: center; gap: 8px; overflow-x: hidden; flex: 1; justify-content: center; }
-        .thumbnail-item { flex-shrink: 0; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent; background: rgba(0, 0, 0, 0.5); }
+        .thumbnail-item { flex-shrink: 0; width: 60px; height: 42px; border-radius: 6px; overflow: hidden; cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent; }
         .thumbnail-item:hover { transform: scale(1.05); border-color: rgba(255, 255, 255, 0.3); }
         .thumbnail-item.active { border-color: rgba(255, 255, 255, 0.8); box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); }
-        .thumbnail-img { width: 100%; height: 100%; object-fit: contain; background: rgba(0, 0, 0, 0.8); }
+        .thumbnail-img { width: 100%; height: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.3); }
         .btn { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; width: 36px; height: 36px; }
         .btn:hover { background: rgba(0, 0, 0, 0.45); transform: scale(1.05); }
         svg { width: 22px; height: 22px; stroke: white; fill: none; stroke-width: 2; }
@@ -412,12 +412,12 @@ export default function BucketManager() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {videos.map((video) => (
                   <Card key={video.id} className="overflow-hidden border border-orange-200/50">
-                    <div className="relative bg-black flex items-center justify-center" style={{ height: '200px' }}>
+                    <div className="relative aspect-video bg-black">
                       {video.thumbnail_url ? (
                         <img 
                           src={video.thumbnail_url} 
                           alt={video.name}
-                          className="max-w-full max-h-full object-contain"
+                          className="w-full h-full object-cover"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                           }}
