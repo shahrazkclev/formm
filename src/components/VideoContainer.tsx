@@ -429,6 +429,7 @@ const VideoContainer = ({ urls, title = "Video Player", className = "" }: VideoC
         className={`relative w-full aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-2xl group ${className}`}
         style={{ 
           boxShadow: 'var(--video-shadow)',
+          aspectRatio: '16/9'
         }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}

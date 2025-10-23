@@ -212,20 +212,70 @@ export default function BucketManager() {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .carousel-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .carousel-container { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px; }
         .video-player-container { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; }
-        .video-wrapper { position: relative; width: 100%; height: 600px; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; }
+        .video-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; }
         .stream-iframe { width: 100%; height: 100%; border: none; cursor: pointer; }
         .controls-panel { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border-radius: 0 0 16px 16px; padding: 16px 20px; display: flex; align-items: center; }
-        .controls-inner { display: flex; align-items: center; justify-content: center; gap: 16px; width: 100%; padding: 0 40px; }
-        .thumbnail-carousel { display: flex; align-items: center; gap: 8px; overflow-x: hidden; flex: 1; justify-content: center; }
-        .thumbnail-item { flex-shrink: 0; width: 60px; height: 42px; border-radius: 6px; overflow: hidden; cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent; }
-        .thumbnail-item:hover { transform: scale(1.05); border-color: rgba(255, 255, 255, 0.3); }
-        .thumbnail-item.active { border-color: rgba(255, 255, 255, 0.8); box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); }
+        .controls-inner { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            gap: 16px; 
+            width: 100%; 
+            padding: 0 20px; 
+        }
+        .thumbnail-carousel { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            overflow-x: auto; 
+            overflow-y: hidden;
+            flex: 1; 
+            justify-content: flex-start; 
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            max-width: calc(100% - 100px);
+        }
+        .thumbnail-carousel::-webkit-scrollbar { display: none; }
+        .thumbnail-item { 
+            flex-shrink: 0; 
+            width: 60px; 
+            height: 42px; 
+            border-radius: 6px; 
+            overflow: hidden; 
+            cursor: pointer; 
+            transition: border-color 0.2s ease; 
+            border: 2px solid transparent; 
+        }
+        .thumbnail-item:hover { 
+            border-color: rgba(255, 255, 255, 0.4); 
+        }
+        .thumbnail-item.active { 
+            border-color: rgba(255, 255, 255, 0.9); 
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.2); 
+        }
         .thumbnail-img { width: 100%; height: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.3); }
         .btn { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; width: 36px; height: 36px; }
         .btn:hover { background: rgba(0, 0, 0, 0.45); transform: scale(1.05); }
         svg { width: 22px; height: 22px; stroke: white; fill: none; stroke-width: 2; }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .carousel-container { padding: 10px; }
+            .controls-panel { padding: 12px 16px; }
+            .controls-inner { padding: 0 16px; gap: 12px; }
+            .thumbnail-carousel { max-width: calc(100% - 80px); }
+            .thumbnail-item { width: 50px; height: 35px; }
+        }
+        
+        @media (max-width: 480px) {
+            .carousel-container { padding: 8px; }
+            .controls-panel { padding: 10px 12px; }
+            .controls-inner { padding: 0 12px; gap: 8px; }
+            .thumbnail-carousel { max-width: calc(100% - 70px); }
+            .thumbnail-item { width: 45px; height: 32px; }
+        }
     </style>
 </head>
 <body>
