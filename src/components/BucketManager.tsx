@@ -40,7 +40,8 @@ export default function BucketManager() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
+  const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
   const [videoToDelete, setVideoToDelete] = useState<VideoFile | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -68,53 +69,60 @@ export default function BucketManager() {
     fetchVideos();
   }, [fetchVideos]);
 
-  const uploadVideo = async () => {
-    if (!uploadFile) return;
+  const uploadVideos = async () => {
+    if (filesToUpload.length === 0) return;
     
     setUploading(true);
-    setUploadProgress(10);
     
     try {
-      // Step 1: Upload to Cloudflare Stream
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-      
-      setUploadProgress(30);
-      const response = await fetch(`${STREAM_API_BASE}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${STREAM_API_TOKEN}`,
-        },
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.errors?.[0]?.message || `Upload failed: ${response.statusText}`);
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        setCurrentUploadIndex(i);
+        setUploadProgress(10);
+        
+        // Step 1: Upload to Cloudflare Stream
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        setUploadProgress(30);
+        const response = await fetch(`${STREAM_API_BASE}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${STREAM_API_TOKEN}`,
+          },
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.errors?.[0]?.message || `Upload failed: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        const videoData = result.result;
+        
+        setUploadProgress(70);
+        
+        // Step 2: Save to Supabase
+        const { error } = await supabase.from('videos').insert({
+          uid: videoData.uid,
+          name: videoData.meta?.name || file.name,
+          stream_url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${videoData.uid}/iframe`,
+          thumbnail_url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${videoData.uid}/thumbnails/thumbnail.jpg`,
+          size: videoData.size || 0,
+          duration: videoData.duration || 0,
+          status: typeof videoData.status === 'object' ? videoData.status.state : 'ready'
+        });
+        
+        if (error) throw error;
+        
+        setUploadProgress(100);
+        toast.success(`${file.name} uploaded!`);
       }
       
-      const result = await response.json();
-      const videoData = result.result;
-      
-      setUploadProgress(70);
-      
-      // Step 2: Save to Supabase
-      const { error } = await supabase.from('videos').insert({
-        uid: videoData.uid,
-        name: videoData.meta?.name || uploadFile.name,
-        stream_url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${videoData.uid}/iframe`,
-        thumbnail_url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${videoData.uid}/thumbnails/thumbnail.jpg`,
-        size: videoData.size || 0,
-        duration: videoData.duration || 0,
-        status: typeof videoData.status === 'object' ? videoData.status.state : 'ready'
-      });
-      
-      if (error) throw error;
-      
-      setUploadProgress(100);
-      toast.success('Video uploaded and saved!');
-      setUploadFile(null);
+      setFilesToUpload([]);
       setUploadProgress(0);
+      setCurrentUploadIndex(0);
       fetchVideos();
     } catch (error: any) {
       console.error('Upload failed:', error);
@@ -337,24 +345,33 @@ export default function BucketManager() {
               <Input
                 type="file"
                 accept="video/*"
-                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                multiple
+                onChange={(e) => setFilesToUpload(Array.from(e.target.files || []))}
                 disabled={uploading}
                 className="flex-1"
               />
               <Button 
-                onClick={uploadVideo}
-                disabled={!uploadFile || uploading}
+                onClick={uploadVideos}
+                disabled={filesToUpload.length === 0 || uploading}
                 className="bg-orange-500 hover:bg-orange-600 text-white"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                {uploading ? 'Uploading...' : 'Upload'}
+                {uploading ? 'Uploading...' : `Upload${filesToUpload.length > 1 ? ` ${filesToUpload.length}` : ''}`}
               </Button>
             </div>
+            
+            {filesToUpload.length > 0 && !uploading && (
+              <p className="text-sm text-orange-600">
+                {filesToUpload.length} file{filesToUpload.length > 1 ? 's' : ''} selected
+              </p>
+            )}
             
             {uploading && uploadProgress > 0 && (
               <div className="space-y-2">
                 <Progress value={uploadProgress} className="h-2" />
-                <p className="text-sm text-orange-600 text-center">{uploadProgress}% uploaded</p>
+                <p className="text-sm text-orange-600 text-center">
+                  File {currentUploadIndex + 1} of {filesToUpload.length}: {uploadProgress}% uploaded
+                </p>
               </div>
             )}
           </CardContent>
