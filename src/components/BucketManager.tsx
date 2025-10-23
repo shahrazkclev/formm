@@ -195,31 +195,28 @@ export default function BucketManager() {
   const uploadThumbnail = async (video: VideoFile, file: File) => {
     setUploadingThumbnail(true);
     try {
-      // Upload to Cloudflare Stream as a thumbnail
-      const formData = new FormData();
-      formData.append('file', file);
+      // Upload to Supabase Storage
+      const fileName = `thumbnails/${video.uid}_${Date.now()}.${file.name.split('.').pop()}`;
       
-      const response = await fetch(`${STREAM_API_BASE}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${STREAM_API_TOKEN}`,
-        },
-        body: formData
-      });
+      const { data, error: uploadError } = await supabase.storage
+        .from('thumbnails')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.errors?.[0]?.message || `Thumbnail upload failed: ${response.statusText}`);
-      }
+      if (uploadError) throw uploadError;
       
-      const result = await response.json();
-      const thumbnailData = result.result;
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('thumbnails')
+        .getPublicUrl(fileName);
       
       // Update the video record with new thumbnail URL
       const { error } = await supabase
         .from('videos')
         .update({ 
-          thumbnail_url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${thumbnailData.uid}/thumbnails/thumbnail.jpg`
+          thumbnail_url: urlData.publicUrl
         })
         .eq('uid', video.uid);
       
@@ -303,16 +300,6 @@ export default function BucketManager() {
             box-shadow: 0 0 8px rgba(255, 255, 255, 0.2); 
         }
         .thumbnail-img { width: 100%; height: 100%; object-fit: cover; background: rgba(0, 0, 0, 0.3); }
-        .thumbnail-loading { 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0, 0, 0, 0.5); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            color: white; 
-            font-size: 10px; 
-        }
         .btn { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; width: 36px; height: 36px; }
         .btn:hover { background: rgba(0, 0, 0, 0.45); transform: scale(1.05); }
         svg { width: 22px; height: 22px; stroke: white; fill: none; stroke-width: 2; }
@@ -372,37 +359,29 @@ export default function BucketManager() {
                 div.className = 'thumbnail-item' + (index === currentIndex ? ' active' : '');
                 div.onclick = function() { jumpToVideo(index); };
                 
-                // Create loading placeholder
-                var loadingDiv = document.createElement('div');
-                loadingDiv.className = 'thumbnail-loading';
-                loadingDiv.textContent = '...';
-                div.appendChild(loadingDiv);
-                
-                // Preload thumbnail with better error handling
+                // Create thumbnail image directly
                 var img = document.createElement('img');
                 img.className = 'thumbnail-img';
                 img.loading = 'lazy';
                 img.onload = function() {
-                    loadingDiv.remove();
-                    div.appendChild(img);
+                    // Image loaded successfully
                 };
                 img.onerror = function() {
                     // Try alternative thumbnail URL
                     var altUrl = buildThumbnailUrl(vid.streamId).replace('thumbnail.jpg', 'thumbnail.png');
-                    var altImg = new Image();
-                    altImg.className = 'thumbnail-img';
-                    altImg.onload = function() {
-                        loadingDiv.remove();
-                        div.appendChild(altImg);
+                    img.src = altUrl;
+                    img.onerror = function() {
+                        // Show fallback icon
+                        img.style.display = 'none';
+                        var fallback = document.createElement('div');
+                        fallback.className = 'thumbnail-fallback';
+                        fallback.textContent = '📹';
+                        fallback.style.cssText = 'width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); color: white; font-size: 16px;';
+                        div.appendChild(fallback);
                     };
-                    altImg.onerror = function() {
-                        loadingDiv.textContent = '📹';
-                        loadingDiv.style.fontSize = '16px';
-                    };
-                    altImg.src = altUrl;
                 };
                 img.src = buildThumbnailUrl(vid.streamId);
-                
+                div.appendChild(img);
                 thumbnailCarousel.appendChild(div);
             });
         }
