@@ -82,6 +82,13 @@ export default function BucketManager() {
         setCurrentUploadIndex(i);
         setUploadProgress(10);
         
+        // Validate file type
+        if (!file.type.startsWith('video/')) {
+          throw new Error(`${file.name} is not a valid video file. Please select video files only.`);
+        }
+        
+        console.log('Uploading video:', file.name, 'Type:', file.type, 'Size:', file.size);
+        
         // Step 1: Upload to Cloudflare Stream
         const formData = new FormData();
         formData.append('file', file);
@@ -97,6 +104,7 @@ export default function BucketManager() {
         
         if (!response.ok) {
           const errorData = await response.json();
+          console.error('Cloudflare Stream upload error:', errorData);
           throw new Error(errorData.errors?.[0]?.message || `Upload failed: ${response.statusText}`);
         }
         
@@ -195,9 +203,12 @@ export default function BucketManager() {
   const uploadThumbnail = async (video: VideoFile, file: File) => {
     setUploadingThumbnail(true);
     try {
+      console.log('Uploading thumbnail:', file.name, 'for video:', video.name);
+      
       // Upload to Supabase Storage
       const fileName = `thumbnails/${video.uid}_${Date.now()}.${file.name.split('.').pop()}`;
       
+      console.log('Uploading to Supabase Storage bucket: thumbnails');
       const { data, error: uploadError } = await supabase.storage
         .from('thumbnails')
         .upload(fileName, file, {
@@ -205,12 +216,18 @@ export default function BucketManager() {
           upsert: false
         });
       
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Supabase Storage upload error:', uploadError);
+        throw uploadError;
+      }
       
+      console.log('Upload successful, getting public URL...');
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('thumbnails')
         .getPublicUrl(fileName);
+      
+      console.log('Public URL:', urlData.publicUrl);
       
       // Update the video record with new thumbnail URL
       const { error } = await supabase
@@ -220,7 +237,10 @@ export default function BucketManager() {
         })
         .eq('uid', video.uid);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database update error:', error);
+        throw error;
+      }
       
       toast.success('Thumbnail uploaded successfully!');
       setThumbnailToUpload(null);
@@ -474,9 +494,17 @@ export default function BucketManager() {
             <div className="flex gap-2">
               <Input
                 type="file"
-                accept="video/*"
+                accept="video/mp4,video/avi,video/mov,video/wmv,video/flv,video/webm,video/mkv"
                 multiple
-                onChange={(e) => setFilesToUpload(Array.from(e.target.files || []))}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  // Filter out non-video files
+                  const videoFiles = files.filter(file => file.type.startsWith('video/'));
+                  if (videoFiles.length !== files.length) {
+                    toast.warning('Some files were skipped - only video files are allowed');
+                  }
+                  setFilesToUpload(videoFiles);
+                }}
                 disabled={uploading}
                 className="flex-1"
               />
