@@ -290,6 +290,10 @@ export default function BucketManager() {
         .stream-iframe { width: 100%; height: 100%; border: none; cursor: pointer; }
         .main-thumbnail { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; cursor: pointer; }
         .main-thumbnail.hidden { display: none; }
+        .play-button-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; background: rgba(0, 0, 0, 0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; transition: all 0.3s ease; }
+        .play-button-overlay:hover { background: rgba(0, 0, 0, 0.9); transform: translate(-50%, -50%) scale(1.1); }
+        .play-button-overlay.hidden { display: none; }
+        .play-icon { width: 0; height: 0; border-left: 25px solid white; border-top: 15px solid transparent; border-bottom: 15px solid transparent; margin-left: 5px; }
         .controls-panel { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border-radius: 0 0 16px 16px; padding: 16px 20px; display: flex; align-items: center; }
         .controls-inner { 
             display: flex; 
@@ -358,6 +362,9 @@ export default function BucketManager() {
         <div class="video-player-container">
             <div class="video-wrapper">
                 <img id="mainThumbnail" class="main-thumbnail" alt="Video thumbnail" />
+                <div id="playButtonOverlay" class="play-button-overlay">
+                    <div class="play-icon"></div>
+                </div>
                 <iframe id="streamPlayer" class="stream-iframe" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
             </div>
             <div class="controls-panel">
@@ -376,6 +383,7 @@ export default function BucketManager() {
         var streamPlayer = document.getElementById('streamPlayer');
         var thumbnailCarousel = document.getElementById('thumbnailCarousel');
         var mainThumbnail = document.getElementById('mainThumbnail');
+        var playButtonOverlay = document.getElementById('playButtonOverlay');
         
         function buildStreamUrl(streamId) {
             return \`https://\${streamDomain}/\${streamId}/iframe?preload=true\`;
@@ -441,15 +449,10 @@ export default function BucketManager() {
                 mainThumbnail.src = buildMainThumbnailUrl(currentVideo.streamId);
             }
             mainThumbnail.classList.remove('hidden');
+            playButtonOverlay.classList.remove('hidden');
             
-            // Load video after a short delay to show thumbnail
-            setTimeout(function() {
-                streamPlayer.src = buildStreamUrl(currentVideo.streamId);
-                // Hide thumbnail when video starts playing
-                streamPlayer.onload = function() {
-                    mainThumbnail.classList.add('hidden');
-                };
-            }, 300);
+            // Load video iframe but keep it hidden behind thumbnail
+            streamPlayer.src = buildStreamUrl(currentVideo.streamId);
             
             updateThumbnails();
         }
@@ -489,11 +492,15 @@ export default function BucketManager() {
         document.getElementById('prevBtn').onclick = prevVideo;
         document.getElementById('nextBtn').onclick = nextVideo;
         
-        // Click main thumbnail to start video
-        mainThumbnail.onclick = function() {
+        // Click main thumbnail or play button to start video
+        function startVideo() {
             mainThumbnail.classList.add('hidden');
-            streamPlayer.src = buildStreamUrl(vids[currentIndex].streamId);
-        };
+            playButtonOverlay.classList.add('hidden');
+            // Video iframe is already loaded, just need to show it
+        }
+        
+        mainThumbnail.onclick = startVideo;
+        playButtonOverlay.onclick = startVideo;
         
         createThumbnails();
         jumpToVideo(0);
