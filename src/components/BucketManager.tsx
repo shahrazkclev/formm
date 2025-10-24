@@ -45,6 +45,7 @@ export default function BucketManager() {
   const [videoToDelete, setVideoToDelete] = useState<VideoFile | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [thumbnailTime, setThumbnailTime] = useState<{video: VideoFile, time: number} | null>(null);
+  const [framePreview, setFramePreview] = useState<{video: VideoFile, currentTime: number} | null>(null);
 
   // Fetch videos from Supabase
   const fetchVideos = useCallback(async () => {
@@ -593,10 +594,7 @@ export default function BucketManager() {
                           size="sm"
                           className="flex-1"
                           onClick={() => {
-                            const time = prompt(`Enter thumbnail time in seconds for "${video.name}":`, '1');
-                            if (time && !isNaN(parseFloat(time))) {
-                              setThumbnailTime({ video, time: parseFloat(time) });
-                            }
+                            setFramePreview({ video, currentTime: 1 });
                           }}
                         >
                           <Upload className="w-4 h-4 mr-2" />
@@ -639,6 +637,83 @@ export default function BucketManager() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Frame Preview Modal */}
+      <AlertDialog open={!!framePreview} onOpenChange={() => setFramePreview(null)}>
+        <AlertDialogContent className="max-w-4xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Select Thumbnail Frame for "{framePreview?.video.name}"</AlertDialogTitle>
+            <AlertDialogDescription>
+              Scrub through the video to find the perfect frame for your thumbnail.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          {framePreview && (
+            <div className="space-y-4">
+              {/* Video Preview */}
+              <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+                <iframe
+                  src={`https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${framePreview.video.uid}/iframe?preload=true&controls=true&autoplay=false`}
+                  className="w-full h-full"
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                  allowFullScreen
+                />
+              </div>
+              
+              {/* Time Controls */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Current Time: {framePreview.currentTime.toFixed(1)}s</label>
+                <input
+                  type="range"
+                  min="0"
+                  max={Math.max(framePreview.video.duration || 60, 60)}
+                  step="0.1"
+                  value={framePreview.currentTime}
+                  onChange={(e) => setFramePreview({
+                    ...framePreview,
+                    currentTime: parseFloat(e.target.value)
+                  })}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>0s</span>
+                  <span>{Math.max(framePreview.video.duration || 60, 60)}s</span>
+                </div>
+              </div>
+              
+              {/* Preview Thumbnail */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Preview Thumbnail:</label>
+                <div className="relative w-32 h-20 bg-gray-100 rounded border overflow-hidden">
+                  <img
+                    src={`https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${framePreview.video.uid}/thumbnails/thumbnail.jpg?time=${framePreview.currentTime}s&height=120`}
+                    alt="Thumbnail preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (framePreview) {
+                  setThumbnailTime({ video: framePreview.video, time: framePreview.currentTime });
+                  setFramePreview(null);
+                }
+              }}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              Use This Frame
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
