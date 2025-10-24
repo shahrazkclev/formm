@@ -288,6 +288,8 @@ export default function BucketManager() {
         .video-player-container { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; }
         .video-wrapper { position: relative; width: 100%; aspect-ratio: 1920/1398; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; }
         .stream-iframe { width: 100%; height: 100%; border: none; cursor: pointer; }
+        .main-thumbnail { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; cursor: pointer; }
+        .main-thumbnail.hidden { display: none; }
         .controls-panel { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border-radius: 0 0 16px 16px; padding: 16px 20px; display: flex; align-items: center; }
         .controls-inner { 
             display: flex; 
@@ -355,6 +357,7 @@ export default function BucketManager() {
     <div class="carousel-container">
         <div class="video-player-container">
             <div class="video-wrapper">
+                <img id="mainThumbnail" class="main-thumbnail" alt="Video thumbnail" />
                 <iframe id="streamPlayer" class="stream-iframe" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
             </div>
             <div class="controls-panel">
@@ -372,13 +375,18 @@ export default function BucketManager() {
         var streamDomain = "customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com";
         var streamPlayer = document.getElementById('streamPlayer');
         var thumbnailCarousel = document.getElementById('thumbnailCarousel');
+        var mainThumbnail = document.getElementById('mainThumbnail');
         
         function buildStreamUrl(streamId) {
             return \`https://\${streamDomain}/\${streamId}/iframe?preload=true\`;
         }
         
         function buildThumbnailUrl(streamId) {
-            return \`https://\${streamDomain}/\${streamId}/thumbnails/thumbnail.jpg?time=0&height=120\`;
+            return \`https://\${streamDomain}/\${streamId}/thumbnails/thumbnail.jpg?time=0&height=60\`;
+        }
+        
+        function buildMainThumbnailUrl(streamId) {
+            return \`https://\${streamDomain}/\${streamId}/thumbnails/thumbnail.jpg?time=0&height=400\`;
         }
         
         function createThumbnails() {
@@ -410,7 +418,13 @@ export default function BucketManager() {
                     };
                 };
                 // Use custom thumbnail if available, otherwise use default
-                img.src = vid.thumbnailUrl || buildThumbnailUrl(vid.streamId);
+                // For mini thumbnails, use low quality versions
+                if (vid.thumbnailUrl) {
+                    // If it's a Supabase URL, we can't optimize it, but for Cloudflare Stream we can
+                    img.src = vid.thumbnailUrl;
+                } else {
+                    img.src = buildThumbnailUrl(vid.streamId);
+                }
                 div.appendChild(img);
                 thumbnailCarousel.appendChild(div);
             });
@@ -418,7 +432,25 @@ export default function BucketManager() {
         
         function jumpToVideo(index) {
             currentIndex = index;
-            streamPlayer.src = buildStreamUrl(vids[index].streamId);
+            var currentVideo = vids[index];
+            
+            // Show main thumbnail first
+            if (currentVideo.thumbnailUrl) {
+                mainThumbnail.src = currentVideo.thumbnailUrl;
+            } else {
+                mainThumbnail.src = buildMainThumbnailUrl(currentVideo.streamId);
+            }
+            mainThumbnail.classList.remove('hidden');
+            
+            // Load video after a short delay to show thumbnail
+            setTimeout(function() {
+                streamPlayer.src = buildStreamUrl(currentVideo.streamId);
+                // Hide thumbnail when video starts playing
+                streamPlayer.onload = function() {
+                    mainThumbnail.classList.add('hidden');
+                };
+            }, 300);
+            
             updateThumbnails();
         }
         
@@ -456,6 +488,12 @@ export default function BucketManager() {
         
         document.getElementById('prevBtn').onclick = prevVideo;
         document.getElementById('nextBtn').onclick = nextVideo;
+        
+        // Click main thumbnail to start video
+        mainThumbnail.onclick = function() {
+            mainThumbnail.classList.add('hidden');
+            streamPlayer.src = buildStreamUrl(vids[currentIndex].streamId);
+        };
         
         createThumbnails();
         jumpToVideo(0);
