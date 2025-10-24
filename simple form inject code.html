@@ -158,7 +158,7 @@
     <form id="discountForm">
         <input type="email" id="emailInput" placeholder="Email me when Discount is Available" required>
         <div class="turnstile-widget" id="turnstileWidget">
-            <div class="cf-turnstile" data-sitekey="0x4AAAAAAB8Rr__NIqRlLky7" data-callback="turnstileCallback" data-expired-callback="turnstileExpiredCallback" data-error-callback="turnstileErrorCallback" data-theme="light" data-size="normal"></div>
+            <div class="cf-turnstile" data-sitekey="0x4AAAAAAB8Rr__NIqRlLky7" data-theme="light" data-size="normal"></div>
         </div>
         <button type="submit" id="submitButton">
             <div class="button-content">
@@ -219,14 +219,12 @@
             submitButton.disabled = false;
             buttonText.textContent = 'Submit';
             
-            // Render widget immediately but inactive
+            // Render widget immediately but with NO callbacks - truly inactive
             turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
                 sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
-                callback: onTurnstileSuccess,
-                'expired-callback': onTurnstileExpired,
-                'error-callback': onTurnstileError,
                 theme: 'light',
                 size: 'normal'
+                // NO callbacks - widget will be inactive
             });
         }
     }
@@ -236,18 +234,33 @@
         if (window.turnstile && turnstileWidgetInstance) {
             // Clear any old token first
             turnstileToken = null;
-            // Reset before executing to avoid conflicts
+            
+            // Remove the inactive widget and create a new active one
             try {
-                window.turnstile.reset(turnstileWidgetInstance);
-                window.turnstile.execute(turnstileWidgetInstance);
+                window.turnstile.remove(turnstileWidgetInstance);
             } catch (e) {
-                console.log('Error executing Turnstile, reinitializing...');
-                // If execution fails, reinitialize the widget
-                initializeTurnstile();
+                console.log('Error removing widget:', e);
             }
+            
+            // Create new widget with callbacks - now it's active
+            turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
+                sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
+                callback: onTurnstileSuccess,
+                'expired-callback': onTurnstileExpired,
+                'error-callback': onTurnstileError,
+                theme: 'light',
+                size: 'normal'
+            });
         } else if (window.turnstile) {
-            // If no widget instance, initialize first
-            initializeTurnstile();
+            // If no widget instance, create active widget
+            turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
+                sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
+                callback: onTurnstileSuccess,
+                'expired-callback': onTurnstileExpired,
+                'error-callback': onTurnstileError,
+                theme: 'light',
+                size: 'normal'
+            });
         }
     }
 
