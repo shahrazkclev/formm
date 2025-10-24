@@ -340,9 +340,13 @@
             console.log('Token being sent - Preview:', turnstileToken ? turnstileToken.substring(0, 50) + '...' : 'null');
             
             // Send to worker and wait for response
+            console.log('Sending request to:', `${WORKER_URL}/api/sessions`);
             const response = await fetch(`${WORKER_URL}/api/sessions`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
                 body: JSON.stringify({ 
                     sessionId, 
                     email,
@@ -354,8 +358,15 @@
             console.log('Worker response status:', response.status);
             
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || 'Failed to save session');
+                const errorText = await response.text();
+                console.error('Worker error response:', errorText);
+                let errorData = {};
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    console.log('Could not parse error response as JSON');
+                }
+                throw new Error(errorData.error || `Server error: ${response.status} - ${errorText}`);
             }
             
             console.log('Worker response successful, showing success...');
