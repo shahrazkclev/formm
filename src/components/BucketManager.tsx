@@ -318,6 +318,10 @@ export default function BucketManager() {
             .thumbnail-item { width: 45px; height: 32px; }
         }
     </style>
+    <!-- Preload video streams for faster navigation -->
+    ${videoData.map(video => 
+        `<link rel="preload" href="https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${video.streamId}/iframe?preload=true" as="document">`
+    ).join('')}
 </head>
 <body>
     <div class="carousel-container">
@@ -397,6 +401,71 @@ export default function BucketManager() {
             });
         }
         
+        // Preload videos for smooth navigation
+        function preloadVideos() {
+            vids.forEach(function(vid, index) {
+                if (index === currentIndex) return; // Skip current video
+                
+                // Create hidden iframe to preload video
+                var preloadIframe = document.createElement('iframe');
+                preloadIframe.style.display = 'none';
+                preloadIframe.style.width = '1px';
+                preloadIframe.style.height = '1px';
+                preloadIframe.src = buildStreamUrl(vid.streamId, vid.thumbnailTime) + '&autoplay=false&controls=false';
+                preloadIframe.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
+                
+                // Add to body temporarily
+                document.body.appendChild(preloadIframe);
+                
+                // Remove after a short delay to avoid memory issues
+                setTimeout(function() {
+                    if (preloadIframe.parentNode) {
+                        preloadIframe.parentNode.removeChild(preloadIframe);
+                    }
+                }, 3000);
+            });
+        }
+        
+        // Preload adjacent videos for instant navigation
+        function preloadAdjacentVideos() {
+            var prevIndex = (currentIndex - 1 + vids.length) % vids.length;
+            var nextIndex = (currentIndex + 1) % vids.length;
+            
+            // Preload previous video
+            if (prevIndex !== currentIndex) {
+                var prevIframe = document.createElement('iframe');
+                prevIframe.style.display = 'none';
+                prevIframe.style.width = '1px';
+                prevIframe.style.height = '1px';
+                prevIframe.src = buildStreamUrl(vids[prevIndex].streamId, vids[prevIndex].thumbnailTime) + '&autoplay=false&controls=false';
+                prevIframe.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
+                document.body.appendChild(prevIframe);
+                
+                setTimeout(function() {
+                    if (prevIframe.parentNode) {
+                        prevIframe.parentNode.removeChild(prevIframe);
+                    }
+                }, 2000);
+            }
+            
+            // Preload next video
+            if (nextIndex !== currentIndex) {
+                var nextIframe = document.createElement('iframe');
+                nextIframe.style.display = 'none';
+                nextIframe.style.width = '1px';
+                nextIframe.style.height = '1px';
+                nextIframe.src = buildStreamUrl(vids[nextIndex].streamId, vids[nextIndex].thumbnailTime) + '&autoplay=false&controls=false';
+                nextIframe.allow = 'accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;';
+                document.body.appendChild(nextIframe);
+                
+                setTimeout(function() {
+                    if (nextIframe.parentNode) {
+                        nextIframe.parentNode.removeChild(nextIframe);
+                    }
+                }, 2000);
+            }
+        }
+        
         function jumpToVideo(index) {
             currentIndex = index;
             var currentVideo = vids[index];
@@ -405,6 +474,11 @@ export default function BucketManager() {
             streamPlayer.src = buildStreamUrl(currentVideo.streamId, currentVideo.thumbnailTime);
             
             updateThumbnails();
+            
+            // Preload adjacent videos for smooth navigation
+            setTimeout(function() {
+                preloadAdjacentVideos();
+            }, 500);
         }
         
         function updateThumbnails() {
@@ -445,6 +519,11 @@ export default function BucketManager() {
         
         createThumbnails();
         jumpToVideo(0);
+        
+        // Preload all videos for smooth navigation
+        setTimeout(function() {
+            preloadVideos();
+        }, 1000); // Wait 1 second after initial load
     </script>
 </body>
 </html>`;
