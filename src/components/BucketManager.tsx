@@ -45,7 +45,6 @@ export default function BucketManager() {
   const [videoToDelete, setVideoToDelete] = useState<VideoFile | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [thumbnailToUpload, setThumbnailToUpload] = useState<{video: VideoFile, file: File} | null>(null);
-  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
 
   // Fetch videos from Supabase
   const fetchVideos = useCallback(async () => {
@@ -201,7 +200,6 @@ export default function BucketManager() {
   };
 
   const uploadThumbnail = async (video: VideoFile, file: File) => {
-    setUploadingThumbnail(true);
     try {
       console.log('=== THUMBNAIL UPLOAD START ===');
       console.log('File:', file.name, 'Type:', file.type, 'Size:', file.size);
@@ -260,8 +258,6 @@ export default function BucketManager() {
       console.error('=== THUMBNAIL UPLOAD FAILED ===');
       console.error('Error details:', error);
       toast.error(error.message || 'Thumbnail upload failed');
-    } finally {
-      setUploadingThumbnail(false);
     }
   };
 
@@ -274,7 +270,8 @@ export default function BucketManager() {
     // Transform videos to match glass-video-carousel.html format
     const videoData = videos.map(video => ({
       streamId: video.uid,
-      name: video.name
+      name: video.name,
+      thumbnailUrl: video.thumbnail_url // Include custom thumbnail URL
     }));
 
     // Read the glass template (simplified version - just the critical parts)
@@ -412,7 +409,8 @@ export default function BucketManager() {
                         div.appendChild(fallback);
                     };
                 };
-                img.src = buildThumbnailUrl(vid.streamId);
+                // Use custom thumbnail if available, otherwise use default
+                img.src = vid.thumbnailUrl || buildThumbnailUrl(vid.streamId);
                 div.appendChild(img);
                 thumbnailCarousel.appendChild(div);
             });
@@ -678,13 +676,12 @@ export default function BucketManager() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={uploadingThumbnail}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => thumbnailToUpload && uploadThumbnail(thumbnailToUpload.video, thumbnailToUpload.file)}
-              disabled={uploadingThumbnail}
               className="bg-orange-500 hover:bg-orange-600 text-white"
             >
-              {uploadingThumbnail ? 'Uploading...' : 'Upload Thumbnail'}
+              Upload Thumbnail
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
