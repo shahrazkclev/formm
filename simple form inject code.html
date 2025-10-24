@@ -85,16 +85,11 @@
         
         /* Turnstile widget styling */
         .turnstile-widget {
-            display: none;
+            display: flex;
             margin: 8px 0;
             justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .turnstile-widget.show {
-            display: flex;
             opacity: 1;
+            transition: opacity 0.3s ease;
         }
         
         .button-content {
@@ -163,7 +158,7 @@
     <form id="discountForm">
         <input type="email" id="emailInput" placeholder="Email me when Discount is Available" required>
         <div class="turnstile-widget" id="turnstileWidget">
-            <div class="cf-turnstile" data-sitekey="0x4AAAAAABdkxzr8aGxAvosA" data-callback="turnstileCallback" data-expired-callback="turnstileExpiredCallback" data-error-callback="turnstileErrorCallback" data-theme="light"></div>
+            <div class="cf-turnstile" data-sitekey="0x4AAAAAAB8Rr__NIqRlLky7" data-callback="turnstileCallback" data-expired-callback="turnstileExpiredCallback" data-error-callback="turnstileErrorCallback" data-theme="light" data-size="normal"></div>
         </div>
         <button type="submit" id="submitButton">
             <div class="button-content">
@@ -217,20 +212,14 @@
     // Initialize Turnstile on page load
     function initializeTurnstile() {
         if (window.turnstile && !turnstileWidgetInstance) {
-            // Clear any existing token and email data
+            // Clear any existing token
             turnstileToken = null;
             
-            // Disable submit button initially
-            submitButton.disabled = true;
-            buttonText.textContent = 'Verifying you\'re human...';
+            // Enable submit button - user can type email and submit
+            submitButton.disabled = false;
+            buttonText.textContent = 'Submit';
             
-            // Clear the widget container
-            const widgetContainer = document.querySelector('.cf-turnstile');
-            if (widgetContainer) {
-                widgetContainer.innerHTML = '';
-            }
-            
-            // Render new widget only if not already rendered
+            // Render widget immediately but inactive
             turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
                 sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
                 callback: onTurnstileSuccess,
@@ -319,15 +308,15 @@
             showLoading();
             executeTurnstile();
             
-            // Set longer timeout to give user more time
+            // Set timeout for verification
             setTimeout(() => {
                 if (!turnstileToken && isProcessing) {
                     hideLoading();
                     buttonText.textContent = 'Submit';
-                    showMessage('Verification is taking longer than expected. Please try again.', 'error');
+                    showMessage('Please complete the verification above.', 'error');
                     isProcessing = false;
                 }
-            }, 30000); // 30 second timeout instead of 8
+            }, 15000); // 15 second timeout
             
             return; // Wait for Turnstile callback
         }
@@ -509,7 +498,6 @@
     document.addEventListener('DOMContentLoaded', () => {
         // Clear any cached data first
         turnstileToken = null;
-        emailInput.value = '';
         
         // Wait for Turnstile to load
         if (window.turnstile) {
