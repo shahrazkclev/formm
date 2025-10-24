@@ -654,14 +654,18 @@ export default function BucketManager() {
           
           {framePreview && (
             <div className="space-y-4">
-              {/* Video Preview */}
-              <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                <iframe
-                  src={`https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${framePreview.video.uid}/iframe?preload=true&controls=true&autoplay=false`}
-                  className="w-full h-full"
-                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                  allowFullScreen
-                />
+              {/* Large Thumbnail Preview */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Thumbnail Preview:</label>
+                <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden border">
+                  <iframe
+                    key={`preview-${framePreview.currentTime}`}
+                    src={`https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${framePreview.video.uid}/iframe?poster=${encodeURIComponent(`https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${framePreview.video.uid}/thumbnails/thumbnail.jpg?time=${framePreview.currentTime}s&height=400`)}&controls=false&autoplay=false`}
+                    className="w-full h-full"
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                    allowFullScreen
+                  />
+                </div>
               </div>
               
               {/* Time Controls */}
@@ -685,19 +689,48 @@ export default function BucketManager() {
                 </div>
               </div>
               
-              {/* Preview Thumbnail */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Preview Thumbnail:</label>
-                <div className="relative w-32 h-20 bg-gray-100 rounded border overflow-hidden">
-                  <img
-                    src={`https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${framePreview.video.uid}/thumbnails/thumbnail.jpg?time=${framePreview.currentTime}s&height=120`}
-                    alt="Thumbnail preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                </div>
+              {/* Quick Time Buttons */}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFramePreview({
+                    ...framePreview,
+                    currentTime: 1
+                  })}
+                >
+                  1s
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFramePreview({
+                    ...framePreview,
+                    currentTime: 5
+                  })}
+                >
+                  5s
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFramePreview({
+                    ...framePreview,
+                    currentTime: 10
+                  })}
+                >
+                  10s
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFramePreview({
+                    ...framePreview,
+                    currentTime: Math.max(framePreview.video.duration || 60, 60) / 2
+                  })}
+                >
+                  Middle
+                </Button>
               </div>
             </div>
           )}
