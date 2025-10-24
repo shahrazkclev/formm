@@ -288,8 +288,6 @@ export default function BucketManager() {
         .video-player-container { width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; }
         .video-wrapper { position: relative; width: 100%; aspect-ratio: 1920/1398; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; }
         .stream-iframe { width: 100%; height: 100%; border: none; cursor: pointer; }
-        .main-thumbnail { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; cursor: pointer; }
-        .main-thumbnail.hidden { display: none; }
         .controls-panel { backdrop-filter: blur(8px); background: rgba(0, 0, 0, 0.3); border-radius: 0 0 16px 16px; padding: 16px 20px; display: flex; align-items: center; }
         .controls-inner { 
             display: flex; 
@@ -357,7 +355,6 @@ export default function BucketManager() {
     <div class="carousel-container">
         <div class="video-player-container">
             <div class="video-wrapper">
-                <img id="mainThumbnail" class="main-thumbnail" alt="Video thumbnail" />
                 <iframe id="streamPlayer" class="stream-iframe" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
             </div>
             <div class="controls-panel">
@@ -375,10 +372,13 @@ export default function BucketManager() {
         var streamDomain = "customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com";
         var streamPlayer = document.getElementById('streamPlayer');
         var thumbnailCarousel = document.getElementById('thumbnailCarousel');
-        var mainThumbnail = document.getElementById('mainThumbnail');
         
-        function buildStreamUrl(streamId) {
-            return \`https://\${streamDomain}/\${streamId}/iframe?preload=true\`;
+        function buildStreamUrl(streamId, posterUrl) {
+            var url = \`https://\${streamDomain}/\${streamId}/iframe?preload=true\`;
+            if (posterUrl) {
+                url += \`&poster=\${encodeURIComponent(posterUrl)}\`;
+            }
+            return url;
         }
         
         function buildThumbnailUrl(streamId) {
@@ -434,16 +434,9 @@ export default function BucketManager() {
             currentIndex = index;
             var currentVideo = vids[index];
             
-            // Show main thumbnail first
-            if (currentVideo.thumbnailUrl) {
-                mainThumbnail.src = currentVideo.thumbnailUrl;
-            } else {
-                mainThumbnail.src = buildMainThumbnailUrl(currentVideo.streamId);
-            }
-            mainThumbnail.classList.remove('hidden');
-            
-            // Load video iframe but keep it hidden behind thumbnail
-            streamPlayer.src = buildStreamUrl(currentVideo.streamId);
+            // Use Cloudflare Stream's native poster system
+            var posterUrl = currentVideo.thumbnailUrl || buildMainThumbnailUrl(currentVideo.streamId);
+            streamPlayer.src = buildStreamUrl(currentVideo.streamId, posterUrl);
             
             updateThumbnails();
         }
@@ -483,11 +476,6 @@ export default function BucketManager() {
         document.getElementById('prevBtn').onclick = prevVideo;
         document.getElementById('nextBtn').onclick = nextVideo;
         
-        // Click main thumbnail to start video
-        mainThumbnail.onclick = function() {
-            mainThumbnail.classList.add('hidden');
-            // Video iframe is already loaded, just need to show it
-        };
         
         createThumbnails();
         jumpToVideo(0);
