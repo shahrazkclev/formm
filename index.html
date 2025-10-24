@@ -85,11 +85,15 @@
         
         /* Turnstile widget styling */
         .turnstile-widget {
-            display: flex;
+            display: none;
             margin: 8px 0;
             justify-content: center;
             opacity: 1;
             transition: opacity 0.3s ease;
+        }
+        
+        .turnstile-widget.show {
+            display: flex;
         }
         
         .button-content {
@@ -219,40 +223,31 @@
             submitButton.disabled = false;
             buttonText.textContent = 'Submit';
             
-            // Render widget immediately but with NO callbacks - truly inactive
-            turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
-                sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
-                theme: 'light',
-                size: 'normal'
-                // NO callbacks - widget will be inactive
-            });
+            // Don't render widget on page load - keep it hidden until submit
+            // Widget will be created only when user clicks submit
         }
     }
 
     // Execute Turnstile challenge
     function executeTurnstile() {
-        if (window.turnstile && turnstileWidgetInstance) {
+        if (window.turnstile) {
             // Clear any old token first
             turnstileToken = null;
             
-            // Remove the inactive widget and create a new active one
-            try {
-                window.turnstile.remove(turnstileWidgetInstance);
-            } catch (e) {
-                console.log('Error removing widget:', e);
+            // Show the widget container
+            const widgetContainer = document.getElementById('turnstileWidget');
+            widgetContainer.classList.add('show');
+            
+            // Remove any existing widget
+            if (turnstileWidgetInstance) {
+                try {
+                    window.turnstile.remove(turnstileWidgetInstance);
+                } catch (e) {
+                    console.log('Error removing widget:', e);
+                }
             }
             
             // Create new widget with callbacks - now it's active
-            turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
-                sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
-                callback: onTurnstileSuccess,
-                'expired-callback': onTurnstileExpired,
-                'error-callback': onTurnstileError,
-                theme: 'light',
-                size: 'normal'
-            });
-        } else if (window.turnstile) {
-            // If no widget instance, create active widget
             turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
                 sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
                 callback: onTurnstileSuccess,

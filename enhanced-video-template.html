@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glass Video Carousel</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        html, body { 
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+        }
+        
+        .carousel-container { 
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+        }
+        
+        .video-player-container { 
+            width: 100%; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .video-wrapper { 
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 1920/1398; 
+            border-radius: 16px 16px 0 0; 
+            overflow: hidden; 
+            background: #000; 
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        
+        .stream-iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+            cursor: pointer; 
+            display: block;
+            transform: translateZ(0) scale(1.01);
+            -webkit-transform: translateZ(0) scale(1.01);
+            transition: transform 0.3s ease;
+        }
+        
+        .stream-iframe.playing {
+            transform: translateZ(0) scale(1);
+            -webkit-transform: translateZ(0) scale(1);
+        }
+        
+        .controls-panel { 
+            backdrop-filter: blur(8px); 
+            background: rgba(0, 0, 0, 0.3); 
+            border-radius: 0 0 16px 16px; 
+            padding: 16px 20px !important; 
+            display: flex; 
+            align-items: center; 
+            border-top: none;
+        }
+        
+        .controls-inner { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            gap: 16px; 
+            width: 100%; 
+            padding: 0 !important; 
+        }
+        
+        .thumbnail-carousel { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            overflow-x: auto; 
+            overflow-y: hidden;
+            flex: 1; 
+            justify-content: flex-start; 
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            max-width: calc(100% - 100px);
+            scroll-behavior: smooth;
+        }
+        
+        .thumbnail-carousel::-webkit-scrollbar { 
+            display: none; 
+        }
+        
+        .thumbnail-item { 
+            flex-shrink: 0; 
+            width: 60px; 
+            height: 42px; 
+            border-radius: 6px; 
+            overflow: hidden; 
+            cursor: pointer; 
+            transition: border-color 0.2s ease; 
+            border: 2px solid transparent; 
+        }
+        
+        .thumbnail-item:hover { 
+            border-color: rgba(255, 255, 255, 0.4); 
+        }
+        
+        .thumbnail-item.active { 
+            border-color: rgba(255, 255, 255, 0.9); 
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.2); 
+        }
+        
+        .thumbnail-img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            background: rgba(0, 0, 0, 0.3); 
+        }
+        
+        .btn { 
+            backdrop-filter: blur(8px); 
+            background: rgba(0, 0, 0, 0.3); 
+            border: 1px solid rgba(255, 255, 255, 0.15); 
+            border-radius: 10px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            transition: all 0.2s; 
+            width: 36px; 
+            height: 36px; 
+        }
+        
+        .btn:hover { 
+            background: rgba(0, 0, 0, 0.45); 
+            transform: scale(1.05); 
+        }
+        
+        svg { 
+            width: 22px; 
+            height: 22px; 
+            stroke: white; 
+            fill: none; 
+            stroke-width: 2; 
+        }
+        
+        @media (max-width: 768px) {
+            .controls-panel { 
+                padding: 10px 16px !important; 
+            }
+            .controls-inner { 
+                gap: 12px; 
+            }
+            .thumbnail-carousel { 
+                max-width: calc(100% - 80px); 
+            }
+            .thumbnail-item { 
+                width: 50px; 
+                height: 35px; 
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .controls-panel { 
+                padding: 10px 12px !important; 
+            }
+            .controls-inner { 
+                gap: 8px; 
+            }
+            .thumbnail-carousel { 
+                max-width: calc(100% - 70px); 
+            }
+            .thumbnail-item { 
+                width: 45px; 
+                height: 32px; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="carousel-container">
+        <div class="video-player-container">
+            <div class="video-wrapper">
+                <iframe id="streamPlayer" class="stream-iframe" loading="lazy" allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;" allowfullscreen="true"></iframe>
+            </div>
+            <div class="controls-panel">
+                <div class="controls-inner">
+                    <button class="btn" id="prevBtn"><svg><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                    <div class="thumbnail-carousel" id="thumbnailCarousel"></div>
+                    <button class="btn" id="nextBtn"><svg><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        var vids = [{"streamId":"dd97f7aeee6cba788ee347944e02e0ac","name":"soft bals.mp4"},{"streamId":"fc4a74a4f15f23a84b28bd2979756a46","name":"phone cover.mp4"},{"streamId":"98bd12c8de1caecd5f979917d5b35700","name":"mosic.mp4"},{"streamId":"4cd73e2e0f2df65d5b82127f5caeb947","name":"ice vid.mp4"},{"streamId":"1193226ac22a0ab0b72483604bac8ac0","name":"handmade jumpIn.mp4"},{"streamId":"8ae294fc7358ec19a5438a39b947d936","name":"hamza cloth vid.mp4"},{"streamId":"800e2ea628af91c9060ff0cef7c2c630","name":"Bubbles shz.mp4"},{"streamId":"344ba70cca43226cdc6801697ef45b8b","name":"bubbles pushing.mp4"},{"streamId":"706c65bd3710b9514c87df5af9197702","name":"array2.mp4"},{"streamId":"891814d616f51afc9292fc7ea79e67b5","name":"array randam.mp4"},{"streamId":"ba4a5d13e2972901372fbe5361dbaf28","name":"array 3.mp4"},{"streamId":"da616d29f0b390587f22a6df0ff1b8f4","name":"Waves.mp4"},{"streamId":"61c6157be116e6d01dc5ac1b3eecd26b","name":"render bubble can.mp4"}];
+        var currentIndex = 0;
+        var hasUserInteraction = false;
+        var streamDomain = "customer-aanhjdlw75bwi5za.cloudflarestream.com";
+        var streamPlayer = document.getElementById('streamPlayer');
+        var thumbnailCarousel = document.getElementById('thumbnailCarousel');
+        var preloadedVideos = new Set();
+        
+        function buildStreamUrl(streamId) {
+            return "https://" + streamDomain + "/" + streamId + "/iframe?preload=true&loop=true&poster=" + encodeURIComponent("https://" + streamDomain + "/" + streamId + "/thumbnails/thumbnail.jpg?time=&height=600");
+        }
+        
+        function buildThumbnailUrl(streamId) {
+            return "https://" + streamDomain + "/" + streamId + "/thumbnails/thumbnail.jpg?time=0&height=60";
+        }
+        
+        function createThumbnails() {
+            thumbnailCarousel.innerHTML = '';
+            vids.forEach(function(vid, index) {
+                var div = document.createElement('div');
+                div.className = 'thumbnail-item' + (index === currentIndex ? ' active' : '');
+                div.onclick = function() { jumpToVideo(index); };
+                
+                var img = document.createElement('img');
+                img.className = 'thumbnail-img';
+                img.loading = 'lazy';
+                img.src = buildThumbnailUrl(vid.streamId);
+                
+                div.appendChild(img);
+                thumbnailCarousel.appendChild(div);
+            });
+        }
+        
+        function preloadVideo(index) {
+            if (preloadedVideos.has(index)) return;
+            
+            var video = vids[index];
+            var preloadIframe = document.createElement('iframe');
+            preloadIframe.style.display = 'none';
+            preloadIframe.style.position = 'absolute';
+            preloadIframe.style.left = '-9999px';
+            preloadIframe.style.top = '-9999px';
+            preloadIframe.src = buildStreamUrl(video.streamId) + "&muted=true";
+            preloadIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+            
+            try {
+                document.body.appendChild(preloadIframe);
+                preloadedVideos.add(index);
+                
+                // Remove preload iframe after a delay
+                setTimeout(function() {
+                    try {
+                        if (preloadIframe.parentNode) {
+                            preloadIframe.parentNode.removeChild(preloadIframe);
+                        }
+                    } catch(e) {
+                        // Silently handle cleanup errors
+                    }
+                }, 5000);
+            } catch(e) {
+                // Silently handle preload errors
+            }
+        }
+        
+        function preloadAdjacentVideos() {
+            var prevIndex = (currentIndex - 1 + vids.length) % vids.length;
+            var nextIndex = (currentIndex + 1) % vids.length;
+            
+            preloadVideo(prevIndex);
+            preloadVideo(nextIndex);
+        }
+        
+        function jumpToVideo(index) {
+            currentIndex = index;
+            var currentVideo = vids[index];
+            
+            // Completely clear and reload iframe
+            streamPlayer.src = '';
+            streamPlayer.classList.remove('playing');
+            
+            setTimeout(function() {
+                var url = buildStreamUrl(currentVideo.streamId);
+                streamPlayer.src = url;
+            }, 150);
+            
+            updateThumbnails();
+            
+            // Preload adjacent videos for smooth navigation
+            preloadAdjacentVideos();
+        }
+        
+        function updateThumbnails() {
+            var thumbnails = thumbnailCarousel.querySelectorAll('.thumbnail-item');
+            thumbnails.forEach(function(thumb, i) {
+                thumb.classList.toggle('active', i === currentIndex);
+            });
+            
+            var activeThumbnail = thumbnailCarousel.querySelector('.thumbnail-item.active');
+            if (activeThumbnail) {
+                activeThumbnail.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        }
+        
+        function nextVideo() {
+            jumpToVideo((currentIndex + 1) % vids.length);
+        }
+        
+        function prevVideo() {
+            jumpToVideo((currentIndex - 1 + vids.length) % vids.length);
+        }
+        
+        document.getElementById('prevBtn').onclick = prevVideo;
+        document.getElementById('nextBtn').onclick = nextVideo;
+        
+        streamPlayer.addEventListener('play', function() {
+            streamPlayer.classList.add('playing');
+            hasUserInteraction = true;
+            
+            // Force unmute when video starts playing
+            setTimeout(function() {
+                try {
+                    var iframe = streamPlayer;
+                    if (iframe.contentWindow && iframe.contentWindow.postMessage) {
+                        iframe.contentWindow.postMessage('{"event":"command","func":"unmute","args":""}', '*');
+                        iframe.contentWindow.postMessage('{"event":"command","func":"setVolume","args":"100"}', '*');
+                    }
+                } catch(e) {
+                    // Silently handle errors to reduce console noise
+                }
+            }, 100);
+        });
+        
+        streamPlayer.addEventListener('pause', function() {
+            streamPlayer.classList.remove('playing');
+        });
+        
+        streamPlayer.addEventListener('ended', function() {
+            // Loop the current video - no autoplay
+            jumpToVideo(currentIndex);
+        });
+        
+        createThumbnails();
+        jumpToVideo(0);
+    </script>
+</body>
+</html>
