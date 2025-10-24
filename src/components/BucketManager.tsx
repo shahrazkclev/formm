@@ -241,10 +241,6 @@ export default function BucketManager() {
       name: video.name,
       thumbnailTime: video.thumbnail_time // Include custom thumbnail time
     }));
-    
-    // Debug: Log the video data
-    console.log('All videos:', videos);
-    console.log('Video data for HTML:', videoData);
 
     // Read the glass template (simplified version - just the critical parts)
     const htmlCode = `<!DOCTYPE html>
@@ -404,10 +400,6 @@ export default function BucketManager() {
         function jumpToVideo(index) {
             currentIndex = index;
             var currentVideo = vids[index];
-            
-            // Debug: Log the video data
-            console.log('Video data:', currentVideo);
-            console.log('Thumbnail time:', currentVideo.thumbnailTime);
             
             // Use Cloudflare Stream's native poster system with time-based thumbnails
             streamPlayer.src = buildStreamUrl(currentVideo.streamId, currentVideo.thumbnailTime);
