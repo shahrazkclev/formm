@@ -6,16 +6,7 @@
     <title>Discount Alert Form</title>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
     <script>
-        // Custom Turnstile configuration
-        window.turnstileCallback = function(token) {
-            onTurnstileSuccess(token);
-        };
-        window.turnstileExpiredCallback = function() {
-            onTurnstileExpired();
-        };
-        window.turnstileErrorCallback = function() {
-            onTurnstileError();
-        };
+        // Turnstile will be handled entirely by JavaScript
     </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -162,7 +153,7 @@
     <form id="discountForm">
         <input type="email" id="emailInput" placeholder="Email me when Discount is Available" required>
         <div class="turnstile-widget" id="turnstileWidget">
-            <div class="cf-turnstile" data-sitekey="0x4AAAAAAB8Rr__NIqRlLky7" data-theme="light" data-size="normal"></div>
+            <div class="cf-turnstile"></div>
         </div>
         <button type="submit" id="submitButton">
             <div class="button-content">
@@ -230,7 +221,7 @@
 
     // Execute Turnstile challenge
     function executeTurnstile() {
-        if (window.turnstile) {
+        if (window.turnstile && !turnstileWidgetInstance) {
             // Clear any old token first
             turnstileToken = null;
             
@@ -238,16 +229,7 @@
             const widgetContainer = document.getElementById('turnstileWidget');
             widgetContainer.classList.add('show');
             
-            // Remove any existing widget
-            if (turnstileWidgetInstance) {
-                try {
-                    window.turnstile.remove(turnstileWidgetInstance);
-                } catch (e) {
-                    console.log('Error removing widget:', e);
-                }
-            }
-            
-            // Create new widget with callbacks - now it's active
+            // Create widget only if it doesn't exist
             turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
                 sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
                 callback: onTurnstileSuccess,
