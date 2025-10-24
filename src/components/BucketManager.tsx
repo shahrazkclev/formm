@@ -289,7 +289,8 @@ export default function BucketManager() {
     // Transform videos to match glass-video-carousel.html format
     const videoData = videos.map(video => ({
       streamId: video.uid,
-      name: video.name
+      name: video.name,
+      thumbnailUrl: video.thumbnail_url // Include custom thumbnail URL
     }));
 
     // Read the glass template (simplified version - just the critical parts)
@@ -427,7 +428,8 @@ export default function BucketManager() {
                         div.appendChild(fallback);
                     };
                 };
-                img.src = buildThumbnailUrl(vid.streamId);
+                // Use custom thumbnail if available, otherwise use default
+                img.src = vid.thumbnailUrl || buildThumbnailUrl(vid.streamId);
                 div.appendChild(img);
                 thumbnailCarousel.appendChild(div);
             });
