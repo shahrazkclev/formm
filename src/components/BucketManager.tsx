@@ -44,7 +44,7 @@ export default function BucketManager() {
   const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
   const [videoToDelete, setVideoToDelete] = useState<VideoFile | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [thumbnailToUpload, setThumbnailToUpload] = useState<{video: VideoFile, file: File} | null>(null);
+  const [thumbnailTime, setThumbnailTime] = useState<{video: VideoFile, time: number} | null>(null);
 
   // Fetch videos from Supabase
   const fetchVideos = useCallback(async () => {
@@ -199,49 +199,16 @@ export default function BucketManager() {
     }
   };
 
-  const uploadThumbnail = async (video: VideoFile, file: File) => {
+  const setThumbnailFrame = async (video: VideoFile, timeInSeconds: number) => {
     try {
-      console.log('=== THUMBNAIL UPLOAD START ===');
-      console.log('File:', file.name, 'Type:', file.type, 'Size:', file.size);
-      console.log('Video UID:', video.uid, 'Video name:', video.name);
+      console.log('=== SET THUMBNAIL FRAME START ===');
+      console.log('Video UID:', video.uid, 'Time:', timeInSeconds);
       
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        throw new Error('Please select an image file (jpg, png, gif, etc.)');
-      }
-      
-      // Upload to Supabase Storage - use simpler path without subfolder
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${video.uid}_${Date.now()}.${fileExt}`;
-      
-      console.log('Uploading to bucket: thumbnails, path:', fileName);
-      
-      const { data, error: uploadError } = await supabase.storage
-        .from('thumbnails')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-      
-      if (uploadError) {
-        console.error('Upload error details:', JSON.stringify(uploadError, null, 2));
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-      
-      console.log('Upload response:', data);
-      
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('thumbnails')
-        .getPublicUrl(fileName);
-      
-      console.log('Public URL:', urlData.publicUrl);
-      
-      // Update the video record with new thumbnail URL
+      // Update the video record with thumbnail time
       const { error: updateError } = await supabase
         .from('videos')
         .update({ 
-          thumbnail_url: urlData.publicUrl
+          thumbnail_time: timeInSeconds
         })
         .eq('uid', video.uid);
       
@@ -250,14 +217,14 @@ export default function BucketManager() {
         throw new Error(`Failed to update database: ${updateError.message}`);
       }
       
-      console.log('=== THUMBNAIL UPLOAD SUCCESS ===');
-      toast.success('Thumbnail uploaded successfully!');
-      setThumbnailToUpload(null);
+      console.log('=== THUMBNAIL FRAME SET SUCCESS ===');
+      toast.success('Thumbnail frame set successfully!');
+      setThumbnailTime(null);
       fetchVideos();
     } catch (error: any) {
-      console.error('=== THUMBNAIL UPLOAD FAILED ===');
+      console.error('=== THUMBNAIL FRAME SET FAILED ===');
       console.error('Error details:', error);
-      toast.error(error.message || 'Thumbnail upload failed');
+      toast.error(error.message || 'Failed to set thumbnail frame');
     }
   };
 
@@ -271,7 +238,7 @@ export default function BucketManager() {
     const videoData = videos.map(video => ({
       streamId: video.uid,
       name: video.name,
-      thumbnailUrl: video.thumbnail_url // Include custom thumbnail URL
+      thumbnailTime: video.thumbnail_time // Include custom thumbnail time
     }));
 
     // Read the glass template (simplified version - just the critical parts)
@@ -373,9 +340,10 @@ export default function BucketManager() {
         var streamPlayer = document.getElementById('streamPlayer');
         var thumbnailCarousel = document.getElementById('thumbnailCarousel');
         
-        function buildStreamUrl(streamId, posterUrl) {
+        function buildStreamUrl(streamId, thumbnailTime) {
             var url = \`https://\${streamDomain}/\${streamId}/iframe?preload=true\`;
-            if (posterUrl) {
+            if (thumbnailTime !== null && thumbnailTime !== undefined) {
+                var posterUrl = \`https://\${streamDomain}/\${streamId}/thumbnails/thumbnail.jpg?time=\${thumbnailTime}s&height=600\`;
                 url += \`&poster=\${encodeURIComponent(posterUrl)}\`;
             }
             return url;
@@ -417,11 +385,9 @@ export default function BucketManager() {
                         div.appendChild(fallback);
                     };
                 };
-                // Use custom thumbnail if available, otherwise use default
-                // For mini thumbnails, use low quality versions
-                if (vid.thumbnailUrl) {
-                    // If it's a Supabase URL, we can't optimize it, but for Cloudflare Stream we can
-                    img.src = vid.thumbnailUrl;
+                // Use custom thumbnail time if available, otherwise use default
+                if (vid.thumbnailTime !== null && vid.thumbnailTime !== undefined) {
+                    img.src = \`https://\${streamDomain}/\${vid.streamId}/thumbnails/thumbnail.jpg?time=\${vid.thumbnailTime}s&height=60\`;
                 } else {
                     img.src = buildThumbnailUrl(vid.streamId);
                 }
@@ -434,9 +400,8 @@ export default function BucketManager() {
             currentIndex = index;
             var currentVideo = vids[index];
             
-            // Use Cloudflare Stream's native poster system
-            var posterUrl = currentVideo.thumbnailUrl || buildMainThumbnailUrl(currentVideo.streamId);
-            streamPlayer.src = buildStreamUrl(currentVideo.streamId, posterUrl);
+            // Use Cloudflare Stream's native poster system with time-based thumbnails
+            streamPlayer.src = buildStreamUrl(currentVideo.streamId, currentVideo.thumbnailTime);
             
             updateThumbnails();
         }
@@ -628,20 +593,14 @@ export default function BucketManager() {
                           size="sm"
                           className="flex-1"
                           onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = (e) => {
-                              const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) {
-                                setThumbnailToUpload({ video, file });
-                              }
-                            };
-                            input.click();
+                            const time = prompt(`Enter thumbnail time in seconds for "${video.name}":`, '1');
+                            if (time && !isNaN(parseFloat(time))) {
+                              setThumbnailTime({ video, time: parseFloat(time) });
+                            }
                           }}
                         >
                           <Upload className="w-4 h-4 mr-2" />
-                          Thumbnail
+                          Set Frame
                         </Button>
                         <Button
                           variant="destructive"
@@ -685,23 +644,23 @@ export default function BucketManager() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Thumbnail Upload Confirmation Dialog */}
-      <AlertDialog open={!!thumbnailToUpload} onOpenChange={() => setThumbnailToUpload(null)}>
+      {/* Thumbnail Frame Confirmation Dialog */}
+      <AlertDialog open={!!thumbnailTime} onOpenChange={() => setThumbnailTime(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Upload Thumbnail?</AlertDialogTitle>
+            <AlertDialogTitle>Set Thumbnail Frame?</AlertDialogTitle>
             <AlertDialogDescription>
-              Upload "{thumbnailToUpload?.file.name}" as thumbnail for "{thumbnailToUpload?.video.name}"?
-              This will replace the current thumbnail.
+              Set frame at {thumbnailTime?.time}s as thumbnail for "{thumbnailTime?.video.name}"?
+              This will use that frame from the video as the thumbnail.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => thumbnailToUpload && uploadThumbnail(thumbnailToUpload.video, thumbnailToUpload.file)}
+              onClick={() => thumbnailTime && setThumbnailFrame(thumbnailTime.video, thumbnailTime.time)}
               className="bg-orange-500 hover:bg-orange-600 text-white"
             >
-              Upload Thumbnail
+              Set Frame
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
