@@ -206,6 +206,8 @@
     let sessionId = null;
     let isProcessing = false;
     let turnstileWidgetInstance = null;
+    let verificationAttempts = 0;
+    let lastVerificationTime = 0;
 
     // Generate session ID
     function generateSessionId() {
@@ -300,8 +302,9 @@
     
     // Prevent autofill from triggering form submission
     emailInput.addEventListener('input', (e) => {
-        // Clear any existing processing state when user types
-        if (isProcessing && !turnstileToken) {
+        // Don't clear processing state when user types - let them take their time
+        // Only clear if there's an actual error state
+        if (isProcessing && !turnstileToken && statusMessage.textContent.includes('failed')) {
             isProcessing = false;
             hideLoading();
             buttonText.textContent = 'Verifying you\'re human...';
@@ -339,15 +342,16 @@
             showLoading();
             executeTurnstile();
             
-            // Set timeout to prevent infinite loading
+            // Set longer timeout to give user more time
             setTimeout(() => {
                 if (!turnstileToken && isProcessing) {
                     hideLoading();
                     buttonText.textContent = 'Submit';
-                    showMessage('Verification timed out. Please try again.', 'error');
+                    showMessage('Verification is taking longer than expected. Please try again.', 'error');
                     isProcessing = false;
+                    resetButton.style.display = 'block';
                 }
-            }, 8000); // 8 second timeout
+            }, 30000); // 30 second timeout instead of 8
             
             return; // Wait for Turnstile callback
         }
@@ -467,6 +471,8 @@
     // Turnstile callback functions
     function onTurnstileSuccess(token) {
         turnstileToken = token;
+        lastVerificationTime = Date.now();
+        verificationAttempts = 0;
         console.log('Turnstile verification completed');
         console.log('Token length:', token ? token.length : 'null');
         console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'null');
@@ -474,6 +480,11 @@
         // Enable submit button and show ready state
         submitButton.disabled = false;
         buttonText.textContent = 'Submit';
+        resetButton.style.display = 'none';
+        
+        // Clear any error messages
+        statusMessage.textContent = '';
+        statusMessage.className = 'status-message';
         
         // Automatically proceed to submission if we're waiting for verification
         if (isProcessing) {
@@ -490,26 +501,37 @@
         submitButton.disabled = true;
         hideLoading();
         buttonText.textContent = 'Verifying you\'re human...';
-        showMessage('Verification expired. Please try again.', 'error');
-        isProcessing = false;
-        resetButton.style.display = 'block';
         
-        // Reset widget instance and reinitialize
-        if (turnstileWidgetInstance) {
-            try {
-                window.turnstile.remove(turnstileWidgetInstance);
-            } catch (e) {
-                console.log('Error removing widget:', e);
-            }
-            turnstileWidgetInstance = null;
+        // Only show error if this is a recent expiration (not from page load)
+        const timeSinceLastVerification = Date.now() - lastVerificationTime;
+        if (timeSinceLastVerification > 5000) { // 5 seconds
+            showMessage('Verification expired. Please complete the challenge again.', 'error');
+            resetButton.style.display = 'block';
         }
         
-        // Reinitialize the widget after expiration
-        setTimeout(() => {
-            if (window.turnstile) {
-                initializeTurnstile();
+        isProcessing = false;
+        
+        // Don't automatically reset - let user decide
+        // Just reset the widget instance for a fresh challenge
+        if (turnstileWidgetInstance) {
+            try {
+                window.turnstile.reset(turnstileWidgetInstance);
+            } catch (e) {
+                console.log('Error resetting widget:', e);
+                // If reset fails, remove and recreate
+                try {
+                    window.turnstile.remove(turnstileWidgetInstance);
+                } catch (e2) {
+                    console.log('Error removing widget:', e2);
+                }
+                turnstileWidgetInstance = null;
+                setTimeout(() => {
+                    if (window.turnstile) {
+                        initializeTurnstile();
+                    }
+                }, 1000);
             }
-        }, 1000);
+        }
     }
     
     function onTurnstileError() {
@@ -521,22 +543,26 @@
         isProcessing = false;
         resetButton.style.display = 'block';
         
-        // Reset widget instance and reinitialize
+        // Try to reset the widget first, only remove if that fails
         if (turnstileWidgetInstance) {
             try {
-                window.turnstile.remove(turnstileWidgetInstance);
+                window.turnstile.reset(turnstileWidgetInstance);
             } catch (e) {
-                console.log('Error removing widget:', e);
+                console.log('Error resetting widget:', e);
+                // If reset fails, remove and recreate
+                try {
+                    window.turnstile.remove(turnstileWidgetInstance);
+                } catch (e2) {
+                    console.log('Error removing widget:', e2);
+                }
+                turnstileWidgetInstance = null;
+                setTimeout(() => {
+                    if (window.turnstile) {
+                        initializeTurnstile();
+                    }
+                }, 1000);
             }
-            turnstileWidgetInstance = null;
         }
-        
-        // Reinitialize the widget after error
-        setTimeout(() => {
-            if (window.turnstile) {
-                initializeTurnstile();
-            }
-        }, 1000);
     }
 
     // Initialize Turnstile when page loads
