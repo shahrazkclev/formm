@@ -156,20 +156,6 @@
             display: flex;
             justify-content: center;
         }
-        .reset-button {
-            background-color: #8b8b7a;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 12px;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: background-color 0.2s;
-        }
-        .reset-button:hover {
-            background-color: #6b6e5f;
-        }
     </style>
 </head>
 <body>
@@ -186,7 +172,6 @@
             </div>
         </button>
         <div class="status-message" id="statusMessage"></div>
-        <button type="button" class="reset-button" id="resetButton" style="display: none;">Reset Form</button>
     </form>
 </div>
 <script>
@@ -200,7 +185,6 @@
     const buttonText = document.getElementById('buttonText');
     const loadingSpinner = document.getElementById('loadingSpinner');
     const turnstileWidget = document.getElementById('turnstileWidget');
-    const resetButton = document.getElementById('resetButton');
     
     let turnstileToken = null;
     let sessionId = null;
@@ -235,7 +219,6 @@
         if (window.turnstile && !turnstileWidgetInstance) {
             // Clear any existing token and email data
             turnstileToken = null;
-            emailInput.value = '';
             
             // Disable submit button initially
             submitButton.disabled = true;
@@ -293,12 +276,6 @@
         handleSubmit();
     });
     
-    // Handle reset button click
-    resetButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        resetForm();
-    });
     
     // Prevent autofill from triggering form submission
     emailInput.addEventListener('input', (e) => {
@@ -349,7 +326,6 @@
                     buttonText.textContent = 'Submit';
                     showMessage('Verification is taking longer than expected. Please try again.', 'error');
                     isProcessing = false;
-                    resetButton.style.display = 'block';
                 }
             }, 30000); // 30 second timeout instead of 8
             
@@ -429,39 +405,6 @@
         container.innerHTML = '<div class="thank-you-container"><div class="status-message success">Thank You!</div></div>';
     }
 
-    // Reset form to initial state
-    function resetForm() {
-        // Clear all state
-        turnstileToken = null;
-        sessionId = null;
-        isProcessing = false;
-        
-        // Reset form elements
-        emailInput.value = '';
-        submitButton.disabled = true;
-        buttonText.textContent = 'Verifying you\'re human...';
-        statusMessage.textContent = '';
-        statusMessage.className = 'status-message';
-        resetButton.style.display = 'none';
-        
-        // Hide loading state
-        hideLoading();
-        
-        // Remove existing widget
-        if (turnstileWidgetInstance) {
-            try {
-                window.turnstile.remove(turnstileWidgetInstance);
-            } catch (e) {
-                console.log('Error removing widget:', e);
-            }
-            turnstileWidgetInstance = null;
-        }
-        
-        // Reinitialize Turnstile widget
-        if (window.turnstile) {
-            initializeTurnstile();
-        }
-    }
 
     function isValidEmail(email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -480,7 +423,6 @@
         // Enable submit button and show ready state
         submitButton.disabled = false;
         buttonText.textContent = 'Submit';
-        resetButton.style.display = 'none';
         
         // Clear any error messages
         statusMessage.textContent = '';
@@ -506,7 +448,6 @@
         const timeSinceLastVerification = Date.now() - lastVerificationTime;
         if (timeSinceLastVerification > 5000) { // 5 seconds
             showMessage('Verification expired. Please complete the challenge again.', 'error');
-            resetButton.style.display = 'block';
         }
         
         isProcessing = false;
@@ -541,7 +482,6 @@
         buttonText.textContent = 'Verifying you\'re human...';
         showMessage('Verification failed. Please try again.', 'error');
         isProcessing = false;
-        resetButton.style.display = 'block';
         
         // Try to reset the widget first, only remove if that fails
         if (turnstileWidgetInstance) {
