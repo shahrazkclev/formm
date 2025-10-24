@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discount Alert Form</title>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <script>
+        // Custom Turnstile configuration
+        window.turnstileCallback = function(token) {
+            onTurnstileSuccess(token);
+        };
+        window.turnstileExpiredCallback = function() {
+            onTurnstileExpired();
+        };
+        window.turnstileErrorCallback = function() {
+            onTurnstileError();
+        };
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif;
+            background: transparent;
+        }
+        .discount-form-container {
+            background: #babaad;
+            padding: 12px;
+            border-radius: 12px;
+            width: 100%;
+        }
+        .discount-form-container input {
+            width: 100%;
+            padding: 14px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            background-color: #e6e6d7;
+            color: #2c2d27;
+            margin-bottom: 10px;
+            font-family: system-ui, -apple-system, sans-serif;
+            transition: background-color 0.15s;
+        }
+        .discount-form-container input::placeholder { color: #9a9a8e; }
+        .discount-form-container input:focus { outline: none; background-color: #f0f0e7; }
+        .discount-form-container button {
+            background-color: #6b6e5f;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+        .discount-form-container button:hover {
+            background-color: #333;
+        }
+        .discount-form-container button:active {
+            background-color: #777;
+        }
+        .discount-form-container button.submitting {
+            background-color: #999;
+            pointer-events: none;
+            position: relative;
+        }
+        .discount-form-container button.submitting::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: slide 1s infinite;
+        }
+        @keyframes slide {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        /* Turnstile widget styling */
+        .turnstile-widget {
+            display: none;
+            margin: 8px 0;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .turnstile-widget.show {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .button-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .discount-form-container button:disabled {
+            background-color: #6b6e5f;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.8;
+            color: #e6e6d7;
+        }
+        
+        .discount-form-container button:disabled:hover {
+            background-color: #6b6e5f;
+            transform: none;
+        }
+        .status-message {
+            margin-top: 4px;
+            font-size: 12px;
+            text-align: center;
+            min-height: 14px;
+            color: #2c2d27;
+        }
+        .status-message.success { 
+            color: #2d5016; 
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 0;
+        }
+        .status-message.error { color: #8b0000; }
+        .form-hidden {
+            display: none;
+        }
+        .thank-you-container {
+            text-align: center;
+            padding: 20px;
+        }
+        .turnstile-container {
+            margin: 8px 0;
+            display: flex;
+            justify-content: center;
+        }
+        .reset-button {
+            background-color: #8b8b7a;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background-color 0.2s;
+        }
+        .reset-button:hover {
+            background-color: #6b6e5f;
+        }
+    </style>
+</head>
+<body>
+<div class="discount-form-container">
+    <form id="discountForm">
+        <input type="email" id="emailInput" placeholder="Email me when Discount is Available" required>
+        <div class="turnstile-widget" id="turnstileWidget">
+            <div class="cf-turnstile" data-sitekey="0x4AAAAAABdkxzr8aGxAvosA" data-callback="turnstileCallback" data-expired-callback="turnstileExpiredCallback" data-error-callback="turnstileErrorCallback" data-theme="light"></div>
+        </div>
+        <button type="submit" id="submitButton">
+            <div class="button-content">
+                <span id="buttonText">Submit</span>
+                <div class="loading-spinner" id="loadingSpinner"></div>
+            </div>
+        </button>
+        <div class="status-message" id="statusMessage"></div>
+        <button type="button" class="reset-button" id="resetButton" style="display: none;">Reset Form</button>
+    </form>
+</div>
+<script>
+    const WORKER_URL = 'https://verify.cleverpoly-store.workers.dev';
+    const PRODUCT_NAME = 'lazy';
+
+    const form = document.getElementById('discountForm');
+    const emailInput = document.getElementById('emailInput');
+    const statusMessage = document.getElementById('statusMessage');
+    const submitButton = document.getElementById('submitButton');
+    const buttonText = document.getElementById('buttonText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const turnstileWidget = document.getElementById('turnstileWidget');
+    const resetButton = document.getElementById('resetButton');
+    
+    let turnstileToken = null;
+    let sessionId = null;
+    let isProcessing = false;
+    let turnstileWidgetInstance = null;
+
+    // Generate session ID
+    function generateSessionId() {
+        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Show loading state
+    function showLoading() {
+        buttonText.style.display = 'none';
+        loadingSpinner.style.display = 'block';
+        submitButton.disabled = true;
+        submitButton.classList.add('submitting');
+    }
+
+    // Hide loading state
+    function hideLoading() {
+        buttonText.style.display = 'inline';
+        loadingSpinner.style.display = 'none';
+        submitButton.disabled = false;
+        submitButton.classList.remove('submitting');
+    }
+
+    // Initialize Turnstile on page load
+    function initializeTurnstile() {
+        if (window.turnstile) {
+            // Clear any existing token and email data
+            turnstileToken = null;
+            emailInput.value = '';
+            
+            // Disable submit button initially
+            submitButton.disabled = true;
+            buttonText.textContent = 'Verifying you\'re human...';
+            
+            // Clear any existing widget first
+            if (turnstileWidgetInstance) {
+                try {
+                    window.turnstile.remove(turnstileWidgetInstance);
+                } catch (e) {
+                    console.log('No existing widget to remove');
+                }
+                turnstileWidgetInstance = null;
+            }
+            
+            // Clear the widget container
+            const widgetContainer = document.querySelector('.cf-turnstile');
+            if (widgetContainer) {
+                widgetContainer.innerHTML = '';
+            }
+            
+            // Render new widget
+            turnstileWidgetInstance = window.turnstile.render('.cf-turnstile', {
+                sitekey: '0x4AAAAAAB8Rr__NIqRlLky7',
+                callback: onTurnstileSuccess,
+                'expired-callback': onTurnstileExpired,
+                'error-callback': onTurnstileError,
+                theme: 'light',
+                size: 'normal'
+            });
+        }
+    }
+
+    // Execute Turnstile challenge
+    function executeTurnstile() {
+        if (window.turnstile && turnstileWidgetInstance) {
+            // Clear any old token first
+            turnstileToken = null;
+            // Reset before executing to avoid conflicts
+            try {
+                window.turnstile.reset(turnstileWidgetInstance);
+                window.turnstile.execute(turnstileWidgetInstance);
+            } catch (e) {
+                console.log('Error executing Turnstile, reinitializing...');
+                // If execution fails, reinitialize the widget
+                initializeTurnstile();
+            }
+        } else if (window.turnstile) {
+            // If no widget instance, initialize first
+            initializeTurnstile();
+        }
+    }
+
+    // Custom form submission
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSubmit();
+    });
+    
+    // Also handle button click directly
+    submitButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSubmit();
+    });
+    
+    // Handle reset button click
+    resetButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resetForm();
+    });
+    
+    // Prevent autofill from triggering form submission
+    emailInput.addEventListener('input', (e) => {
+        // Clear any existing processing state when user types
+        if (isProcessing && !turnstileToken) {
+            isProcessing = false;
+            hideLoading();
+            buttonText.textContent = 'Verifying you\'re human...';
+        }
+    });
+    
+    async function handleSubmit() {
+        console.log('Submit clicked, isProcessing:', isProcessing);
+        
+        if (isProcessing) return;
+        
+        const email = emailInput.value.trim();
+        console.log('Email:', email);
+        
+        // Validate email format and prevent empty submissions
+        if (!email || email.length === 0) {
+            showMessage('Please enter your email address', 'error');
+            return;
+        }
+        
+        if (!isValidEmail(email)) {
+            showMessage('Please enter a valid email address', 'error');
+            return;
+        }
+        
+        // Start processing
+        isProcessing = true;
+        console.log('Starting processing...');
+        
+        // Check if verification is ready
+        if (!turnstileToken) {
+            console.log('Turnstile not ready, starting verification...');
+            console.log('Current turnstileToken:', turnstileToken);
+            buttonText.textContent = 'Verifying you\'re not a bot...';
+            showLoading();
+            executeTurnstile();
+            
+            // Set timeout to prevent infinite loading
+            setTimeout(() => {
+                if (!turnstileToken && isProcessing) {
+                    hideLoading();
+                    buttonText.textContent = 'Submit';
+                    showMessage('Verification timed out. Please try again.', 'error');
+                    isProcessing = false;
+                }
+            }, 8000); // 8 second timeout
+            
+            return; // Wait for Turnstile callback
+        }
+        
+        // Verification ready, proceed with submission
+        console.log('Turnstile ready, proceeding with submission...');
+        await processSubmission(email);
+    }
+
+    // Process the actual submission
+    async function processSubmission(email) {
+        console.log('processSubmission called with email:', email);
+        if (!isProcessing) return;
+        
+        console.log('Showing loading and submitting...');
+        showLoading();
+        buttonText.textContent = 'Submitting...';
+        
+        try {
+            // Generate session ID
+            sessionId = generateSessionId();
+            console.log('Generated session ID:', sessionId);
+            
+            // Validate all required data before sending
+            if (!email || !turnstileToken || !PRODUCT_NAME) {
+                throw new Error('Missing required data for submission');
+            }
+            
+            console.log('Sending to worker:', { email, turnstileToken, productName: PRODUCT_NAME });
+            console.log('Token being sent - Length:', turnstileToken ? turnstileToken.length : 'null');
+            console.log('Token being sent - Preview:', turnstileToken ? turnstileToken.substring(0, 50) + '...' : 'null');
+            
+            // Send to worker and wait for response
+            const response = await fetch(`${WORKER_URL}/api/sessions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    sessionId, 
+                    email,
+                    turnstileToken,
+                    productName: PRODUCT_NAME
+                })
+            });
+            
+            console.log('Worker response status:', response.status);
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to save session');
+            }
+            
+            console.log('Worker response successful, showing success...');
+            
+            // Show success after worker confirms
+            form.style.display = 'none';
+            showThankYou();
+            
+        } catch (error) {
+            console.error('Submission error:', error);
+            showMessage('Something went wrong. Please try again.', 'error');
+            hideLoading();
+            buttonText.textContent = 'Submit';
+            isProcessing = false;
+        }
+    }
+
+    function showMessage(text, type) {
+        statusMessage.textContent = text;
+        statusMessage.className = `status-message ${type}`;
+        if (type === 'success') setTimeout(() => statusMessage.textContent = '', 3000);
+    }
+
+    function showThankYou() {
+        const container = document.querySelector('.discount-form-container');
+        container.innerHTML = '<div class="thank-you-container"><div class="status-message success">Thank You!</div></div>';
+    }
+
+    // Reset form to initial state
+    function resetForm() {
+        // Clear all state
+        turnstileToken = null;
+        sessionId = null;
+        isProcessing = false;
+        
+        // Reset form elements
+        emailInput.value = '';
+        submitButton.disabled = true;
+        buttonText.textContent = 'Verifying you\'re human...';
+        statusMessage.textContent = '';
+        statusMessage.className = 'status-message';
+        resetButton.style.display = 'none';
+        
+        // Hide loading state
+        hideLoading();
+        
+        // Reinitialize Turnstile widget
+        if (window.turnstile) {
+            initializeTurnstile();
+        }
+    }
+
+    function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+    
+    // Turnstile callback functions
+    function onTurnstileSuccess(token) {
+        turnstileToken = token;
+        console.log('Turnstile verification completed');
+        console.log('Token length:', token ? token.length : 'null');
+        console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'null');
+        
+        // Enable submit button and show ready state
+        submitButton.disabled = false;
+        buttonText.textContent = 'Submit';
+        
+        // Automatically proceed to submission if we're waiting for verification
+        if (isProcessing) {
+            console.log('Auto-proceeding to submission...');
+            buttonText.textContent = 'Submitting...';
+            // Get the email and proceed with submission
+            const email = emailInput.value.trim();
+            processSubmission(email);
+        }
+    }
+    
+    function onTurnstileExpired() {
+        turnstileToken = null;
+        submitButton.disabled = true;
+        hideLoading();
+        buttonText.textContent = 'Verifying you\'re human...';
+        showMessage('Verification expired. Please try again.', 'error');
+        isProcessing = false;
+        resetButton.style.display = 'block';
+        
+        // Reinitialize the widget after expiration
+        setTimeout(() => {
+            if (window.turnstile) {
+                initializeTurnstile();
+            }
+        }, 1000);
+    }
+    
+    function onTurnstileError() {
+        turnstileToken = null;
+        submitButton.disabled = true;
+        hideLoading();
+        buttonText.textContent = 'Verifying you\'re human...';
+        showMessage('Verification failed. Please try again.', 'error');
+        isProcessing = false;
+        resetButton.style.display = 'block';
+        
+        // Reinitialize the widget after error
+        setTimeout(() => {
+            if (window.turnstile) {
+                initializeTurnstile();
+            }
+        }, 1000);
+    }
+
+    // Initialize Turnstile when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        // Clear any cached data first
+        turnstileToken = null;
+        emailInput.value = '';
+        
+        // Wait for Turnstile to load
+        if (window.turnstile) {
+            initializeTurnstile();
+        } else {
+            // Wait for Turnstile to load
+            const checkTurnstile = setInterval(() => {
+                if (window.turnstile) {
+                    initializeTurnstile();
+                    clearInterval(checkTurnstile);
+                }
+            }, 100);
+            
+            // Clear interval after 10 seconds to prevent infinite checking
+            setTimeout(() => {
+                clearInterval(checkTurnstile);
+            }, 10000);
+        }
+    });
+</script>
+</body>
+</html>
