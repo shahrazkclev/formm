@@ -2,11 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Badge } from './ui/badge';
 import { Upload, Copy, Trash2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Progress } from './ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableVideoCard } from './SortableVideoCard';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +30,7 @@ interface VideoFile {
   duration: number;
   status: string;
   created_at: string;
+  display_order?: number;
 }
 
 export default function BucketManager() {
@@ -54,6 +57,7 @@ export default function BucketManager() {
       const { data, error } = await supabase
         .from('videos')
         .select('*')
+        .order('display_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -114,6 +118,16 @@ export default function BucketManager() {
         setUploadProgress(70);
         
         // Step 2: Save to Supabase
+        // Get the max display_order and add 1
+        const { data: maxOrderData } = await supabase
+          .from('videos')
+          .select('display_order')
+          .order('display_order', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .single();
+        
+        const nextOrder = (maxOrderData?.display_order || 0) + 1;
+        
         const { error } = await supabase.from('videos').insert({
           uid: videoData.uid,
           name: videoData.meta?.name || file.name,
@@ -121,7 +135,8 @@ export default function BucketManager() {
           thumbnail_url: `https://customer-${STREAM_CUSTOMER_CODE}.cloudflarestream.com/${videoData.uid}/thumbnails/thumbnail.jpg`,
           size: videoData.size || 0,
           duration: videoData.duration || 0,
-          status: typeof videoData.status === 'object' ? videoData.status.state : 'ready'
+          status: typeof videoData.status === 'object' ? videoData.status.state : 'ready',
+          display_order: nextOrder
         });
         
         if (error) throw error;
@@ -485,6 +500,46 @@ export default function BucketManager() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = videos.findIndex((v) => v.id === active.id);
+      const newIndex = videos.findIndex((v) => v.id === over.id);
+
+      const newVideos = arrayMove(videos, oldIndex, newIndex);
+      setVideos(newVideos);
+
+      // Update display_order in database
+      try {
+        const updates = newVideos.map((video, index) => ({
+          id: video.id,
+          display_order: index + 1
+        }));
+
+        for (const update of updates) {
+          await supabase
+            .from('videos')
+            .update({ display_order: update.display_order })
+            .eq('id', update.id);
+        }
+
+        toast.success('Video order updated!');
+      } catch (error) {
+        console.error('Failed to update order:', error);
+        toast.error('Failed to update video order');
+        fetchVideos(); // Revert to original order
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
       <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -579,66 +634,28 @@ export default function BucketManager() {
             ) : videos.length === 0 ? (
               <p className="text-center text-orange-600">No videos yet. Upload your first video above!</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {videos.map((video) => (
-                  <Card key={video.id} className="overflow-hidden border border-orange-200/50">
-                    <div className="relative aspect-video bg-black">
-                      {video.thumbnail_url ? (
-                        <img 
-                          src={video.thumbnail_url} 
-                          alt={video.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white">
-                          No thumbnail
-                        </div>
-                      )}
-                    </div>
-                    <CardContent className="p-4 space-y-2">
-                      <h3 className="font-medium text-orange-800 truncate">{video.name}</h3>
-                      <div className="flex items-center justify-between text-sm text-orange-600/70">
-                        <span>{formatFileSize(video.size)}</span>
-                        <Badge variant="secondary">{video.status}</Badge>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = (e) => {
-                              const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) {
-                                setThumbnailToUpload({ video, file });
-                              }
-                            };
-                            input.click();
-                          }}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Thumbnail
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => setVideoToDelete(video)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <DndContext 
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext 
+                  items={videos.map(v => v.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {videos.map((video) => (
+                      <SortableVideoCard
+                        key={video.id}
+                        video={video}
+                        formatFileSize={formatFileSize}
+                        onThumbnailUpload={(file) => setThumbnailToUpload({ video, file })}
+                        onDelete={() => setVideoToDelete(video)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             )}
           </CardContent>
         </Card>
