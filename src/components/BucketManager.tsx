@@ -203,25 +203,35 @@ export default function BucketManager() {
   const uploadThumbnail = async (video: VideoFile, file: File) => {
     setUploadingThumbnail(true);
     try {
-      console.log('Uploading thumbnail:', file.name, 'for video:', video.name);
+      console.log('=== THUMBNAIL UPLOAD START ===');
+      console.log('File:', file.name, 'Type:', file.type, 'Size:', file.size);
+      console.log('Video UID:', video.uid, 'Video name:', video.name);
       
-      // Upload to Supabase Storage
-      const fileName = `thumbnails/${video.uid}_${Date.now()}.${file.name.split('.').pop()}`;
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select an image file (jpg, png, gif, etc.)');
+      }
       
-      console.log('Uploading to Supabase Storage bucket: thumbnails');
+      // Upload to Supabase Storage - use simpler path without subfolder
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${video.uid}_${Date.now()}.${fileExt}`;
+      
+      console.log('Uploading to bucket: thumbnails, path:', fileName);
+      
       const { data, error: uploadError } = await supabase.storage
         .from('thumbnails')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true
         });
       
       if (uploadError) {
-        console.error('Supabase Storage upload error:', uploadError);
-        throw uploadError;
+        console.error('Upload error details:', JSON.stringify(uploadError, null, 2));
+        throw new Error(`Upload failed: ${uploadError.message}`);
       }
       
-      console.log('Upload successful, getting public URL...');
+      console.log('Upload response:', data);
+      
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('thumbnails')
@@ -230,24 +240,26 @@ export default function BucketManager() {
       console.log('Public URL:', urlData.publicUrl);
       
       // Update the video record with new thumbnail URL
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('videos')
         .update({ 
           thumbnail_url: urlData.publicUrl
         })
         .eq('uid', video.uid);
       
-      if (error) {
-        console.error('Database update error:', error);
-        throw error;
+      if (updateError) {
+        console.error('Database update error:', JSON.stringify(updateError, null, 2));
+        throw new Error(`Failed to update database: ${updateError.message}`);
       }
       
+      console.log('=== THUMBNAIL UPLOAD SUCCESS ===');
       toast.success('Thumbnail uploaded successfully!');
       setThumbnailToUpload(null);
       fetchVideos();
     } catch (error: any) {
-      console.error('Thumbnail upload failed:', error);
-      toast.error(`Thumbnail upload failed: ${error.message || 'Unknown error'}`);
+      console.error('=== THUMBNAIL UPLOAD FAILED ===');
+      console.error('Error details:', error);
+      toast.error(error.message || 'Thumbnail upload failed');
     } finally {
       setUploadingThumbnail(false);
     }
